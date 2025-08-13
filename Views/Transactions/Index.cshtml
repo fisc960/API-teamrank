@@ -1,0 +1,65 @@
+﻿@model IEnumerable<GemachApp.Data.Transaction>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.Client)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.TransDate)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Added)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Subtracted)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.TotalAdded)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.TotalSubtracted)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Client.ClientId)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.TransDate)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Added)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Subtracted)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.TotalAdded)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.TotalSubtracted)
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.TransId">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.TransId">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.TransId">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
