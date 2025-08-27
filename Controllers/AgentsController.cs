@@ -1,7 +1,8 @@
-﻿using Azure.Core;
+﻿//using Azure.Core;
 using GemachApp.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using static GemachApp.Controllers.UpdateController;
 
 
@@ -12,10 +13,12 @@ namespace GemachApp.Controllers
     public class AgentsController : ControllerBase
     {
         private readonly AppDbContext _context;
+       
 
         public AgentsController(AppDbContext context)
         {
             _context = context;
+          
         }
 
         [HttpPost("signup")]
@@ -71,7 +74,14 @@ namespace GemachApp.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] NewAgent loginDto)
         {
-            var agent = _context.Agents
+            try
+            {
+                if (loginDto == null)
+                {
+                    return BadRequest(new { message = "Request body is null" });
+                }
+
+                var agent = _context.Agents
                 .FirstOrDefault(a => a.AgentName == loginDto.Name && a.AgentPassword == loginDto.Password);
 
             if (agent == null)
@@ -81,13 +91,21 @@ namespace GemachApp.Controllers
 
             return Ok(new { message = "Login successful", agentName = agent.AgentName, agentId = agent.Id });
         }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in Login: {ex.Message}");
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
 
 
         // GET: api/agent
         [HttpGet]
         public async Task<IActionResult> GetAgents()
         {
-            var agents = await _context.Agents.ToListAsync();
+            try
+            {
+                var agents = await _context.Agents.ToListAsync();
             // Convert to AgentResponse to return agentname/agentpassword
             var agentResponses = agents.Select(a => new AgentResponse
             {
@@ -98,12 +116,24 @@ namespace GemachApp.Controllers
 
             return Ok(agentResponses);
         }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetAgents: {ex.Message}");
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
+        }
 
         // PUT: api/agent/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateAgent(int id, [FromBody] UpdateAgentRequest request)
         {
-            if (id != request.Id)
+            try
+            {
+                if (request == null)
+                {
+                    return BadRequest("Request body is null");
+                }
+                if (id != request.Id)
             {
                 return BadRequest("Agent ID mismatch");
             }
@@ -132,9 +162,8 @@ namespace GemachApp.Controllers
 
             _context.Entry(agentToUpdate).State = EntityState.Modified;
 
-            try
-            {
                 await _context.SaveChangesAsync();
+                return NoContent();
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -148,7 +177,11 @@ namespace GemachApp.Controllers
                 }
             }
 
-            return NoContent();
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in UpdateAgent: {ex.Message}");
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+            }
         }
 
 
@@ -156,17 +189,19 @@ namespace GemachApp.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAgent(int id)
         {
-            var agent = await _context.Agents.FindAsync(id);
+            try
+            {
+                var agent = await _context.Agents.FindAsync(id);
             if (agent == null)
             {
                 return NotFound(new { message = "Agent not found" });
             }
 
-            var existingAgent = await _context.Agents.FindAsync(id);
+           /* var existingAgent = await _context.Agents.FindAsync(id);
             if (existingAgent == null)
             {
                 return NotFound(new { message = "Agent not found" });
-            }
+            }*/
 
             _context.Agents.Remove(agent);
 
@@ -183,13 +218,12 @@ namespace GemachApp.Controllers
             });
 
 
-            try
-            {
                 await _context.SaveChangesAsync();
                 return Ok(new { message = "Agent deleted successfully" });
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error in DeleteAgent: {ex.Message}");
                 return BadRequest(new { message = "Failed to delete agent", error = ex.Message });
             }
         }
