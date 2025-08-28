@@ -1,3 +1,183 @@
+
+using Microsoft.EntityFrameworkCore;
+using GemachApp.Data;
+using GemachApp.Services;
+using Microsoft.Extensions.Logging;
+
+namespace WebApplication4
+{
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            var builder = WebApplication.CreateBuilder(args);
+
+            // Logging
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole();
+            builder.Logging.AddDebug();
+            builder.Logging.SetMinimumLevel(LogLevel.Information);
+
+            // ----------------------------
+            // Database Configuration
+            // ----------------------------
+            var railwayUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+
+            if (!string.IsNullOrWhiteSpace(railwayUrl))
+            {
+                Console.WriteLine($"DATABASE_URL (from Railway): '{railwayUrl}'");
+
+                string npgsqlConn;
+                try
+                {
+                    // If it already looks like a Npgsql connection string, use directly
+                    if (railwayUrl.Contains("Host="))
+                    {
+                        npgsqlConn = railwayUrl;
+                        Console.WriteLine("Detected Npgsql connection string format, using directly.");
+                    }
+                    else
+                    {
+                        npgsqlConn = ConvertRailwayUrlToNpgsql(railwayUrl);
+                        Console.WriteLine("Converted DATABASE_URL to Npgsql format.");
+                    }
+
+                    builder.Services.AddDbContext<AppDbContext>(options =>
+                        options.UseNpgsql(npgsqlConn)
+                               .EnableSensitiveDataLogging()
+                               .LogTo(Console.WriteLine, LogLevel.Information)
+                    );
+                    Console.WriteLine("Using Railway PostgreSQL database.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error parsing DATABASE_URL: {ex.Message}");
+                    throw; // Stop startup to see the error
+                }
+            }
+            else
+            {
+                var localConn = builder.Configuration.GetConnectionString("ApplicationDbcontext");
+                Console.WriteLine($"No DATABASE_URL found, using local SQL Server: {localConn}");
+                builder.Services.AddDbContext<AppDbContext>(options =>
+                    options.UseSqlServer(localConn)
+                           .EnableSensitiveDataLogging()
+                           .LogTo(Console.WriteLine, LogLevel.Information)
+                );
+            }
+
+            // Services
+            builder.Services.AddScoped<IAccountService, AccountService>();
+            builder.Services.AddTransient<IEmailService, EmailService>();
+
+            builder.Services.AddControllers();
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen();
+
+            // ----------------------------
+            // CORS
+            // ----------------------------
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("FrontendPolicy", policy =>
+                {
+                    if (builder.Environment.IsDevelopment())
+                    {
+                        policy.WithOrigins(
+                            "http://localhost:5173",
+                            "http://localhost:5174",
+                            "https://localhost:5173"
+                        )
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
+                    }
+                    else
+                    {
+                        policy.WithOrigins(
+                            "https://team-rank-banking-lnlxttazu-mr-fischs-projects.vercel.app"
+                        )
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
+                    }
+                });
+            });
+
+            // Build app
+            var app = builder.Build();
+
+            // ----------------------------
+            // Middleware pipeline
+            // ----------------------------
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseDeveloperExceptionPage();
+                app.UseSwagger();
+                app.UseSwaggerUI(c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "API v1");
+                });
+            }
+            else
+            {
+                app.UseExceptionHandler("/Error");
+            }
+
+            app.UseHttpsRedirection();
+            app.UseRouting();
+
+            // Apply CORS BEFORE MapControllers
+            app.UseCors("FrontendPolicy");
+
+            app.UseAuthorization();
+
+            app.MapControllers();
+
+            // ----------------------------
+            // Database Migrations
+            // ----------------------------
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+                try
+                {
+                    logger.LogInformation("Testing database connection...");
+                    if (db.Database.CanConnect())
+                    {
+                        logger.LogInformation("Database connection successful!");
+                        logger.LogInformation("Applying database migrations...");
+                        db.Database.Migrate();
+                        logger.LogInformation("Database migrations completed successfully!");
+                    }
+                    else
+                    {
+                        logger.LogError("Cannot connect to database!");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Database connection failed: {Message}", ex.Message);
+                }
+            }
+
+            Console.WriteLine("Starting application...");
+            app.Run();
+        }
+
+        // Helper to convert Railway DATABASE_URL to Npgsql connection string
+        private static string ConvertRailwayUrlToNpgsql(string databaseUrl)
+        {
+            // Example DATABASE_URL: postgres://user:pass@host:port/dbname
+            var uri = new Uri(databaseUrl);
+            var userInfo = uri.UserInfo.Split(':');
+            return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.AbsolutePath.TrimStart('/')};Pooling=true;SSL Mode=Require;Trust Server Certificate=True;";
+        }
+    }
+}
+
+/*
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
@@ -31,9 +211,9 @@ namespace WebApplication4
 
             builder.Services.AddDbContext<AppDbContext>(options =>
             {  
-            options.UseNpgsql(connectionString);*/
+            options.UseNpgsql(connectionString);*//*
 
-            var connectionString = builder.Configuration.GetConnectionString("ApplicationDbcontext");
+var connectionString = builder.Configuration.GetConnectionString("ApplicationDbcontext");
 
             builder.Services.AddDbContext<AppDbContext>(options =>
             {
@@ -49,7 +229,7 @@ namespace WebApplication4
                 options.UseSqlServer(builder.Configuration.GetConnectionString("ApplicationDbcontext"))
              .EnableSensitiveDataLogging()
            .LogTo(Console.WriteLine, LogLevel.Information)
-           );*/
+           );*//*
             //builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
             builder.Services.AddScoped<IAccountService, AccountService>();
               builder.Services.AddTransient<IEmailService, EmailService>();
@@ -99,12 +279,27 @@ namespace WebApplication4
                 });
             });
 
+
+            // 1. Add CORS policy
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowVercelFrontend",
+                    policy =>
+                    {
+                        policy.WithOrigins("https://team-rank-banking-lnlxttazu-mr-fischs-projects.vercel.app")
+                              .AllowAnyHeader()
+                              .AllowAnyMethod();
+                    });
+            });
+
+            // 2. Apply CORS
+            var app = builder.Build();
+            app.UseCors("AllowVercelFrontend");
+
             // Clear providers after CORS configuration
             builder.Logging.ClearProviders();
             builder.Services.AddTransient<IEmailService, EmailService>();
 
-
-            var app = builder.Build();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
@@ -173,3 +368,4 @@ Console.WriteLine("Starting application...");
     }
 }
 
+*/
