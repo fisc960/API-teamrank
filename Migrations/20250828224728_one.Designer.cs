@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GemachApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250814204405_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250828224728_one")]
+    partial class one
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {

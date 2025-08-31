@@ -12,58 +12,41 @@ namespace WebApplication4
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            // Railway port configuration
+            var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+            builder.WebHost.UseUrls($"http://0.0.0.0:{port}", $"http://localhost:{port}");
+            Console.WriteLine($"Configuring to listen on port {port}...");
+
+
             // Logging
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
             builder.Logging.AddDebug();
             builder.Logging.SetMinimumLevel(LogLevel.Information);
 
-            // ----------------------------
             // Database Configuration
-            // ----------------------------
             var railwayUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-
-            if (!string.IsNullOrWhiteSpace(railwayUrl))
+            if (!string.IsNullOrEmpty(railwayUrl))
             {
-                Console.WriteLine($"DATABASE_URL (from Railway): '{railwayUrl}'");
-
-                string npgsqlConn;
-                try
-                {
-                    // If it already looks like a Npgsql connection string, use directly
-                    if (railwayUrl.Contains("Host="))
-                    {
-                        npgsqlConn = railwayUrl;
-                        Console.WriteLine("Detected Npgsql connection string format, using directly.");
-                    }
-                    else
-                    {
-                        npgsqlConn = ConvertRailwayUrlToNpgsql(railwayUrl);
-                        Console.WriteLine("Converted DATABASE_URL to Npgsql format.");
-                    }
-
-                    builder.Services.AddDbContext<AppDbContext>(options =>
-                        options.UseNpgsql(npgsqlConn)
-                               .EnableSensitiveDataLogging()
-                               .LogTo(Console.WriteLine, LogLevel.Information)
-                    );
-                    Console.WriteLine("Using Railway PostgreSQL database.");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error parsing DATABASE_URL: {ex.Message}");
-                    throw; // Stop startup to see the error
-                }
+                // Use PostgreSQL for production
+                var npgsqlConn = ConvertRailwayUrlToNpgsql(railwayUrl);
+                builder.Services.AddDbContext<AppDbContext>(options =>
+                    options.UseNpgsql(npgsqlConn)
+                           .EnableSensitiveDataLogging()
+                           .LogTo(Console.WriteLine, LogLevel.Information)
+                );
+                Console.WriteLine("Using Railway PostgreSQL database");
             }
             else
             {
+                // Local development: SQL Server
                 var localConn = builder.Configuration.GetConnectionString("ApplicationDbcontext");
-                Console.WriteLine($"No DATABASE_URL found, using local SQL Server: {localConn}");
                 builder.Services.AddDbContext<AppDbContext>(options =>
                     options.UseSqlServer(localConn)
                            .EnableSensitiveDataLogging()
                            .LogTo(Console.WriteLine, LogLevel.Information)
                 );
+                Console.WriteLine("Using local SQL Server database");
             }
 
             // Services
@@ -74,9 +57,7 @@ namespace WebApplication4
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
-            // ----------------------------
             // CORS
-            // ----------------------------
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("FrontendPolicy", policy =>
@@ -94,22 +75,39 @@ namespace WebApplication4
                     }
                     else
                     {
-                        policy.WithOrigins(
-                            "https://team-rank-banking-lnlxttazu-mr-fischs-projects.vercel.app"
-                        )
-                        .AllowAnyHeader()
+                         policy.WithOrigins(
+                         /*"https://team-rank-banking-lnlxttazu-mr-fischs-projects.vercel.app"*/
+                         "https://team-rank-banking.vercel.app", //  actual Vercel frontend URL
+           
+            "http://localhost:5173"                  //  Local dev (adjust if needed)
+
+                         )
+                       /* policy.SetIsOriginAllowed(origin =>
+                        {
+                            // Allow all Vercel deployments
+                            return origin.Contains("vercel.app") &&
+                                   (origin.StartsWith("https://team-rank-banking") ||
+                                    origin.Contains("mr-fischs-projects"));
+                        })*/
+                       .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials();
                     }
                 });
             });
 
-            // Build app
             var app = builder.Build();
+            // global exception handler
+            app.UseExceptionHandler(appBuilder =>
+            {
+                appBuilder.Run(async context =>
+                {
+                    context.Response.StatusCode = 500;
+                    await context.Response.WriteAsync("An error occurred");
+                });
+            });
 
-            // ----------------------------
             // Middleware pipeline
-            // ----------------------------
             if (app.Environment.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -127,29 +125,46 @@ namespace WebApplication4
             app.UseHttpsRedirection();
             app.UseRouting();
 
-            // Apply CORS BEFORE MapControllers
+            // Apply CORS
             app.UseCors("FrontendPolicy");
 
             app.UseAuthorization();
-
             app.MapControllers();
 
-            // ----------------------------
-            // Database Migrations
-            // ----------------------------
+            var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+            Console.WriteLine($"Raw DATABASE_URL: {databaseUrl}");
+
+            if (string.IsNullOrEmpty(databaseUrl))
+            {
+                Console.WriteLine("DATABASE_URL is null or empty!");
+            }
+            else
+            {
+                Console.WriteLine($"DATABASE_URL length: {databaseUrl.Length}");
+                Console.WriteLine($"Starts with postgresql://: {databaseUrl.StartsWith("postgresql://")}");
+                Console.WriteLine($"Contains serviceHost=: {databaseUrl.Contains("serviceHost=")}");
+            }
+
+            // Database migrations: only apply PostgreSQL migrations in production
             using (var scope = app.Services.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
                 try
                 {
                     logger.LogInformation("Testing database connection...");
                     if (db.Database.CanConnect())
                     {
                         logger.LogInformation("Database connection successful!");
-                        logger.LogInformation("Applying database migrations...");
-                        db.Database.Migrate();
-                        logger.LogInformation("Database migrations completed successfully!");
+
+                        // Apply migrations **only for PostgreSQL / production**
+                        if (!string.IsNullOrEmpty(railwayUrl))
+                        {
+                            logger.LogInformation("Applying PostgreSQL database migrations...");
+                            db.Database.Migrate();
+                            logger.LogInformation("PostgreSQL migrations completed successfully!");
+                        }
                     }
                     else
                     {
@@ -162,20 +177,72 @@ namespace WebApplication4
                 }
             }
 
-            Console.WriteLine("Starting application...");
+           // Railway port configuration
+          /*var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+            app.Urls.Add($"http://0.0.0.0:{port}");*/
+
+            Console.WriteLine($"Starting application on port {port}...");
             app.Run();
         }
 
         // Helper to convert Railway DATABASE_URL to Npgsql connection string
+        /* private static string ConvertRailwayUrlToNpgsql(string databaseUrl)
+         {
+             var uri = new Uri(databaseUrl);
+             var userInfo = uri.UserInfo.Split(':');
+             return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.AbsolutePath.TrimStart('/')};Pooling=true;SSL Mode=Require;Trust Server Certificate=True;";
+         }*/
         private static string ConvertRailwayUrlToNpgsql(string databaseUrl)
         {
-            // Example DATABASE_URL: postgres://user:pass@host:port/dbname
-            var uri = new Uri(databaseUrl);
-            var userInfo = uri.UserInfo.Split(':');
-            return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.AbsolutePath.TrimStart('/')};Pooling=true;SSL Mode=Require;Trust Server Certificate=True;";
+            try
+            {
+                // Check if it's already in connection string format (Railway's new format)
+                if (databaseUrl.Contains("serviceHost=") || databaseUrl.Contains("Database="))
+                {
+                    Console.WriteLine("DATABASE_URL is already in connection string format");
+                    return databaseUrl; // Return as-is since it's already correct format
+                }
+
+                // Handle URI format (postgresql://user:password@host:port/database)
+                if (databaseUrl.StartsWith("postgresql://") || databaseUrl.StartsWith("postgres://"))
+                {
+                    var uri = new Uri(databaseUrl);
+                    var host = uri.Host;
+                    var port = uri.Port;
+                    var database = uri.AbsolutePath.TrimStart('/');
+                    var userInfo = uri.UserInfo.Split(':');
+                    var username = userInfo[0];
+                    var password = userInfo.Length > 1 ? userInfo[1] : "";
+
+                    return $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+                }
+
+                // If neither format is recognized, throw an exception
+                throw new ArgumentException($"Unrecognized database URL format: {databaseUrl}");
+            }
+            catch (UriFormatException ex)
+            {
+                Console.WriteLine($"URI Format Error: {ex.Message}");
+                Console.WriteLine($"DATABASE_URL value: {databaseUrl}");
+
+                // Try to return the original string if it might already be a connection string
+                if (!string.IsNullOrEmpty(databaseUrl) && databaseUrl.Contains("="))
+                {
+                    Console.WriteLine("Attempting to use DATABASE_URL as connection string directly");
+                    return databaseUrl;
+                }
+
+                throw new InvalidOperationException($"Could not parse DATABASE_URL: {databaseUrl}", ex);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unexpected error parsing DATABASE_URL: {ex.Message}");
+                throw;
+            }
         }
     }
 }
+
 
 /*
 using Microsoft.Extensions.Logging;
@@ -297,8 +364,8 @@ var connectionString = builder.Configuration.GetConnectionString("ApplicationDbc
             app.UseCors("AllowVercelFrontend");
 
             // Clear providers after CORS configuration
-            builder.Logging.ClearProviders();
-            builder.Services.AddTransient<IEmailService, EmailService>();
+            /*  #2  builder.Logging.ClearProviders();
+            builder.Services.AddTransient<IEmailService, EmailService>();*//*
 
 
             // Configure the HTTP request pipeline.
@@ -367,5 +434,4 @@ Console.WriteLine("Starting application...");
         }
     }
 }
-
 */
