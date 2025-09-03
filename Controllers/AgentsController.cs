@@ -123,67 +123,7 @@ namespace GemachApp.Controllers
             }
         }
 
-        // PUT: api/agent/{id}
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAgent(int id, [FromBody] UpdateAgentRequest request)
-        {
-            try
-            {
-                if (request == null)
-                {
-                    return BadRequest("Request body is null");
-                }
-                if (id != request.Id)
-            {
-                return BadRequest("Agent ID mismatch");
-            }
-
-            var existingAgent = await _context.Agents.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id);
-            if (existingAgent == null)
-            {
-                return NotFound("Agent not found");
-            }
-
-            // Log changes before updating
-            await LogAgentFieldChanges(existingAgent, new Agent
-            {
-                Id = request.Id,
-                AgentName = request.AgentName,
-                AgentPassword = request.AgentPassword
-            }, request.AgentMakingChange ?? "System");
-
-            // Update the agent
-            var agentToUpdate = new Agent
-            {
-                Id = request.Id,
-                AgentName = request.AgentName,
-                AgentPassword = request.AgentPassword
-            };
-
-            _context.Entry(agentToUpdate).State = EntityState.Modified;
-
-                await _context.SaveChangesAsync();
-                return NoContent();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!AgentExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in UpdateAgent: {ex.Message}");
-                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
-            }
-        }
-
+        
 
         // DELETE: api/agent/{id}
         [HttpDelete("{id}")]
@@ -228,7 +168,7 @@ namespace GemachApp.Controllers
             }
         }
 
-        [HttpPost("test-signup")]
+        /*[HttpPost("test-signup")]
         public async Task<IActionResult> TestSignup([FromBody] object data)
         {
             try
@@ -250,10 +190,10 @@ namespace GemachApp.Controllers
                 Console.WriteLine($"Error in test endpoint: {ex.Message}");
                 return StatusCode(500, new { error = ex.Message });
             }
-        }
+        }*/
 
 
-        private async Task LogAgentFieldChanges(Agent existingAgent, Agent updatedAgent, string agentMakingChange)
+        private void LogAgentFieldChanges(Agent existingAgent, Agent updatedAgent, string agentMakingChange)
         {
             var updates = new List<UpdateLog>();
             var timestamp = DateTime.UtcNow;

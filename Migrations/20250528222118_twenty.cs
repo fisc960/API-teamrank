@@ -13,12 +13,12 @@ namespace GemachApp.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "ObjectId",
                 table: "Updates",
-                type: "nvarchar(max)",
+                type: "varchar(max)",
                 nullable: false,
                 defaultValue: "");
         }
 
-        /// <inheritdoc />
+        /// <inheritdoc /
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(

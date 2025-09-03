@@ -40,7 +40,7 @@ namespace GemachApp.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("UpdateBalDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("DateTime");
 
                     b.HasKey("AccountId");
 
@@ -59,32 +59,32 @@ namespace GemachApp.Migrations
 
                     b.Property<string>("Comments")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("Email")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("LastName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<DateTime>("OpenDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("DateTime");
 
                     b.Property<string>("Password")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("Phonenumber")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("SelectedPosition")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<bool>("Urav")
                         .HasColumnType("bit");
@@ -121,7 +121,7 @@ namespace GemachApp.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("TransDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("DateTime");
 
                     b.HasKey("TransId");
 

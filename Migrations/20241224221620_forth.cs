@@ -13,20 +13,20 @@ namespace GemachApp.Migrations
             migrationBuilder.AlterColumn<string>(
                 name: "Phonenumber",
                 table: "Clients",
-                type: "nvarchar(18)",
+                type: "varchar(18)",
                 maxLength: 18,
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "nvarchar(max)");
+                oldType: "varchar(max)");
 
             migrationBuilder.AlterColumn<string>(
                 name: "FirstName",
                 table: "Clients",
-                type: "nvarchar(40)",
+                type: "varchar(40)",
                 maxLength: 40,
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "nvarchar(max)");
+                oldType: "varchar(max)");
         }
 
         /// <inheritdoc />
@@ -35,19 +35,19 @@ namespace GemachApp.Migrations
             migrationBuilder.AlterColumn<string>(
                 name: "Phonenumber",
                 table: "Clients",
-                type: "nvarchar(max)",
+                type: "varchar(max)",
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "nvarchar(18)",
+                oldType: "varchar(18)",
                 oldMaxLength: 18);
 
             migrationBuilder.AlterColumn<string>(
                 name: "FirstName",
                 table: "Clients",
-                type: "nvarchar(max)",
+                type: "varchar(max)",
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "nvarchar(40)",
+                oldType: "varchar(40)",
                 oldMaxLength: 40);
         }
     }

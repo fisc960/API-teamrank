@@ -49,20 +49,20 @@ namespace GemachApp.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "Comments",
                 table: "Clients",
-                type: "nvarchar(max)",
+                type: "varchar(max)",
                 nullable: false,
                 defaultValue: "");
 
             migrationBuilder.AddColumn<string>(
                 name: "Password",
                 table: "Clients",
-                type: "nvarchar(max)",
+                type: "varchar(max)",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "SelectedPosition",
                 table: "Clients",
-                type: "nvarchar(max)",
+                type: "varchar(max)",
                 nullable: false,
                 defaultValue: "");
 
@@ -76,7 +76,7 @@ namespace GemachApp.Migrations
             migrationBuilder.AddColumn<DateTime>(
                 name: "UpdateBalDate",
                 table: "Accounts",
-                type: "datetime2",
+                type: "DateTime",
                 nullable: false,
                 defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
         }

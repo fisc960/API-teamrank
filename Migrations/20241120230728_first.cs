@@ -17,10 +17,10 @@ namespace GemachApp.Migrations
                 {
                     ClientId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    firstName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    lastName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    phonenumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    OpenDate = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    firstName = table.Column<string>(type: "varchar(max)", nullable: false),
+                    lastName = table.Column<string>(type: "varchar(max)", nullable: false),
+                    phonenumber = table.Column<string>(type: "varchar(max)", nullable: false),
+                    OpenDate = table.Column<DateTime>(type: "DateTime", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -54,7 +54,7 @@ namespace GemachApp.Migrations
                     TransId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     ClientId = table.Column<int>(type: "int", nullable: false),
-                    TransDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    TransDate = table.Column<DateTime>(type: "DateTime", nullable: false),
                     added = table.Column<int>(type: "int", nullable: false),
                     subtracted = table.Column<int>(type: "int", nullable: false),
                     totaladded = table.Column<int>(type: "int", nullable: false),

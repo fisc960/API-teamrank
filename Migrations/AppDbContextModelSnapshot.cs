@@ -17,7 +17,7 @@ namespace GemachApp.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "6.0.36")
+                .HasAnnotation("ProductVersion", "9.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
@@ -44,7 +44,7 @@ namespace GemachApp.Migrations
                     b.HasIndex("ClientId")
                         .IsUnique();
 
-                    b.ToTable("Accounts");
+                    b.ToTable("Accounts", (string)null);
                 });
 
             modelBuilder.Entity("GemachApp.Data.Admin", b =>
@@ -65,7 +65,7 @@ namespace GemachApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Admins");
+                    b.ToTable("Admins", (string)null);
                 });
 
             modelBuilder.Entity("GemachApp.Data.Agent", b =>
@@ -91,44 +91,47 @@ namespace GemachApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Agents");
+                    b.ToTable("Agents", (string)null);
                 });
 
             modelBuilder.Entity("GemachApp.Data.Check", b =>
                 {
-                    b.Property<int>("CheckId")
+                    b.Property<int>("checkId")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<int>("AgentId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("AgentName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("checkId"), 1L, 1);
 
                     b.Property<DateTime>("CheckIssuedDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<int>("ClientId")
-                        .HasColumnType("int");
 
                     b.Property<string>("ClientName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("OrderTo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Sum")
-                        .HasColumnType("int");
-
                     b.Property<int>("TransId")
                         .HasColumnType("int");
 
-                    b.HasKey("CheckId");
+                    b.Property<int>("agentId")
+                        .HasColumnType("int");
 
-                    b.ToTable("Checks");
+                    b.Property<string>("agentName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("clientId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("orderTo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("sum")
+                        .HasColumnType("int");
+
+                    b.HasKey("checkId");
+
+                    b.ToTable("Checks", (string)null);
                 });
 
             modelBuilder.Entity("GemachApp.Data.Client", b =>
@@ -183,7 +186,7 @@ namespace GemachApp.Migrations
 
                     b.HasKey("ClientId");
 
-                    b.ToTable("Clients");
+                    b.ToTable("Clients", (string)null);
                 });
 
             modelBuilder.Entity("GemachApp.Data.Transaction", b =>
@@ -228,7 +231,7 @@ namespace GemachApp.Migrations
 
                     b.HasIndex("ClientId");
 
-                    b.ToTable("Transactions");
+                    b.ToTable("Transactions", (string)null);
                 });
 
             modelBuilder.Entity("GemachApp.Data.UpdateLog", b =>
@@ -268,7 +271,7 @@ namespace GemachApp.Migrations
 
                     b.HasKey("RecordId");
 
-                    b.ToTable("Updates");
+                    b.ToTable("Updates", (string)null);
                 });
 
             modelBuilder.Entity("GemachApp.Data.Account", b =>

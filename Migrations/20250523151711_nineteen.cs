@@ -14,7 +14,7 @@ namespace GemachApp.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "Agent",
                 table: "Clients",
-                type: "nvarchar(max)",
+                type: "varchar(max)",
                 nullable: false,
                 defaultValue: "");
 
@@ -24,12 +24,12 @@ namespace GemachApp.Migrations
                 {
                     RecordId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    TableName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ColumName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    PrevVersion = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    UpdatedVersion = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Agent = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Timestamp = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    TableName = table.Column<string>(type: "varchar(max)", nullable: false),
+                    ColumName = table.Column<string>(type: "varchar(max)", nullable: false),
+                    PrevVersion = table.Column<string>(type: "varchar(max)", nullable: false),
+                    UpdatedVersion = table.Column<string>(type: "varchar(max)", nullable: false),
+                    Agent = table.Column<string>(type: "varchar(max)", nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "DateTime", nullable: false)
                 },
                 constraints: table =>
                 {

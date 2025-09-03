@@ -13,7 +13,7 @@ namespace GemachApp.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "Email",
                 table: "Clients",
-                type: "nvarchar(max)",
+                type: "varchar(max)",
                 nullable: true);
         }
 

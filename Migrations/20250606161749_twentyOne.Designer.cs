@@ -40,7 +40,7 @@ namespace GemachApp.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("UpdateBalDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("DateTime");
 
                     b.HasKey("AccountId");
 
@@ -60,11 +60,11 @@ namespace GemachApp.Migrations
 
                     b.Property<string>("Password")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.HasKey("Id");
 
@@ -82,12 +82,12 @@ namespace GemachApp.Migrations
                     b.Property<string>("AgentName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                        .HasColumnType("varchar(40)");
 
                     b.Property<string>("AgentPassword")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                        .HasColumnType("varchar(40)");
 
                     b.HasKey("Id");
 
@@ -104,38 +104,38 @@ namespace GemachApp.Migrations
 
                     b.Property<string>("Agent")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("ClientFirstName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                        .HasColumnType("varchar(40)");
 
                     b.Property<string>("ClientLastName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<DateTime>("ClientOpenDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("DateTime");
 
                     b.Property<string>("ClientPassword")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("Comments")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("Email")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("Phonenumber")
                         .IsRequired()
                         .HasMaxLength(18)
-                        .HasColumnType("nvarchar(18)");
+                        .HasColumnType("varchar(18)");
 
                     b.Property<string>("SelectedPosition")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<bool>("Urav")
                         .HasColumnType("bit");
@@ -161,7 +161,7 @@ namespace GemachApp.Migrations
 
                     b.Property<string>("Agent")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<int>("ClientId")
                         .HasColumnType("int");
@@ -179,7 +179,7 @@ namespace GemachApp.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("TransDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("DateTime");
 
                     b.HasKey("TransId");
 
@@ -200,30 +200,30 @@ namespace GemachApp.Migrations
 
                     b.Property<string>("Agent")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("ColumName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("ObjectId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("PrevVersion")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("TableName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("DateTime");
 
                     b.Property<string>("UpdatedVersion")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("varchar(max)");
 
                     b.HasKey("RecordId");
 
