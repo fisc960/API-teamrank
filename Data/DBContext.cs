@@ -17,7 +17,21 @@ namespace GemachApp.Data
         {
             base.OnModelCreating(modelBuilder);
 
-           
+            modelBuilder.Entity<Client>(entity =>
+            {
+                entity.Property(e => e.ClientFirstName)
+                    .HasColumnType("text")
+                    .IsRequired();
+
+                entity.Property(e => e.ClientLastName)
+                    .HasColumnType("text")
+                    .IsRequired();
+
+                entity.Property(e => e.Phonenumber)
+                    .HasColumnType("text")
+                    .IsRequired();
+            });
+
             modelBuilder.Entity<Transaction>(e =>
             {
                 e.HasKey(t => t.TransId);
@@ -48,7 +62,7 @@ namespace GemachApp.Data
             modelBuilder.Entity<Account>(e =>
             {
                 e.Property(a => a.TotalAmount).HasPrecision(18, 2);
-             e.HasKey(a => a.AccountId);
+                e.HasKey(a => a.AccountId);
             });
             // Account ↔ Client (one-to-one)
             /*modelBuilder.Entity<Account>()
@@ -72,7 +86,7 @@ namespace GemachApp.Data
             {
                 e.Property(a => a.Password).HasMaxLength(128);
                 e.Property(a => a.PasswordHash).HasMaxLength(256);
-            e.HasKey(a => a.Id);
+                e.HasKey(a => a.Id);
             });
 
             // Configure the Admin entity if needed
@@ -102,9 +116,16 @@ namespace GemachApp.Data
                 e.Property(u => u.Agent).HasMaxLength(100);
                 // Keep C# default DateTime.Now (no provider-specific SQL default)
             });
-
-
         }
+
+            // Or globally configure all strings to use text
+/*protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder.UseNpgsql(connectionString);
+            }
+        }*/
 
     }
 
