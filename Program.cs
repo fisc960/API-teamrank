@@ -1,6 +1,4 @@
 
-
-
 using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
 using GemachApp.Services;
@@ -186,7 +184,9 @@ namespace WebApplication4
             app.UseRouting();
 
             // Use CORS (you can temporarily switch to "AllowAll" for testing)
-            app.UseCors("FrontendPolicy");
+            //app.UseCors("FrontendPolicy");
+            app.UseCors("AllowAll"); // <-- temporarily use the debug policy
+
 
             app.UseAuthorization();
 
@@ -263,8 +263,6 @@ namespace WebApplication4
         }
     }
 }
-
-
 
 
 /*
