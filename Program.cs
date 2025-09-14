@@ -30,11 +30,19 @@ namespace WebApplication4
                 try
                 {
                     // Production: Railway PostgreSQL
-                    var npgsqlConn = ConvertRailwayUrlToNpgsql(railwayUrl);
+                    /*var npgsqlConn = ConvertRailwayUrlToNpgsql(railwayUrl);
                     Console.WriteLine($"Connection string (masked): {MaskConnectionString(npgsqlConn)}");
 
                     builder.Services.AddDbContext<AppDbContext>(options =>
                         options.UseNpgsql(npgsqlConn)
+                               .EnableSensitiveDataLogging()
+                               .LogTo(Console.WriteLine, LogLevel.Information)
+                    );*/
+
+                    var defaultConn = builder.Configuration.GetConnectionString("DefaultConnection");
+
+                    builder.Services.AddDbContext<AppDbContext>(options =>
+                        options.UseNpgsql(defaultConn)
                                .EnableSensitiveDataLogging()
                                .LogTo(Console.WriteLine, LogLevel.Information)
                     );
@@ -91,21 +99,26 @@ namespace WebApplication4
             builder.Logging.AddConsole();
             builder.Logging.SetMinimumLevel(LogLevel.Information);
 
-            // CORS with more comprehensive configuration
+            // CORS with more comprehensive configuration 
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("FrontendPolicy", policy =>
                 {
                     if (builder.Environment.IsDevelopment())
                     {
-                        policy.WithOrigins("http://localhost:5173", "https://localhost:5174", "https://localhost:5173")
-                              .AllowAnyHeader()
-                              .AllowAnyMethod()
-                              .AllowCredentials();
+                        // Local React dev servers
+                        policy.WithOrigins(
+                            "http://localhost:5173",
+                            "https://localhost:5173",
+                            "https://localhost:5174"
+                        )
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
                     }
                     else
                     {
-                        // Production origins - add both your known URLs and be more flexible
+                        // Production: your Vercel domains
                         policy.WithOrigins(
                             "https://team-rank-banking.vercel.app",
                             "https://team-rank-banking-mltsy6680-mr-fischs-projects.vercel.app"
@@ -113,16 +126,8 @@ namespace WebApplication4
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials()
-                        .SetPreflightMaxAge(TimeSpan.FromSeconds(86400)); // Cache preflight for 24 hours
+                        .SetPreflightMaxAge(TimeSpan.FromSeconds(86400)); // cache OPTIONS
                     }
-                });
-
-                // Temporary debug policy (remove after fixing)
-                options.AddPolicy("AllowAll", policy =>
-                {
-                    policy.AllowAnyOrigin()
-                          .AllowAnyHeader()
-                          .AllowAnyMethod();
                 });
             });
 
@@ -183,39 +188,11 @@ namespace WebApplication4
 
             app.UseRouting();
 
-            // Use CORS (you can temporarily switch to "AllowAll" for testing)
-            //app.UseCors("FrontendPolicy");
-            app.UseCors("AllowAll"); // <-- temporarily use the debug policy
-
+            app.UseCors("FrontendPolicy");
 
             app.UseAuthorization();
 
-            // Add health check endpoints
-            app.MapGet("/", () => new {
-                message = "API is running",
-                timestamp = DateTime.UtcNow,
-                environment = app.Environment.EnvironmentName
-            });
-
-            app.MapGet("/health", () => new {
-                status = "healthy",
-                timestamp = DateTime.UtcNow,
-                version = "1.0.0"
-            });
-
-            app.MapGet("/cors-test", (HttpContext context) => new {
-                origin = context.Request.Headers.Origin.ToString(),
-                method = context.Request.Method,
-                headers = context.Request.Headers.Keys.ToList(),
-                timestamp = DateTime.UtcNow
-            });
-
             app.MapControllers();
-
-            Console.WriteLine("Middleware configuration complete. Starting application...");
-            Console.WriteLine($"Environment: {app.Environment.EnvironmentName}");
-            Console.WriteLine("Application should be accessible now.");
-
             app.Run();
         }
 
