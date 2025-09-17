@@ -1,0 +1,14 @@
+# Ignore build artifacts
+bin/
+obj/
+
+# Ignore IDE/project settings
+.vs/
+*.user
+*.suo
+
+# Ignore logs
+*.log
+
+# Ignore temp files
+.structure.txt
