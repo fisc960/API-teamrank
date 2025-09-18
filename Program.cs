@@ -118,11 +118,26 @@ namespace WebApplication4
                     }
                     else
                     {
-                        // Production: your Vercel domains
-                        policy.WithOrigins(
-                            "https://team-rank-banking.vercel.app",
-                            "https://team-rank-banking-mltsy6680-mr-fischs-projects.vercel.app"
-                        )
+                        //  Production & Preview: allow all vercel.app subdomains
+                        policy.SetIsOriginAllowed(origin =>
+                        {
+                            if (string.IsNullOrEmpty(origin)) return false;
+
+                            try
+                            {
+                                var host = new Uri(origin).Host;
+                                return host.EndsWith("vercel.app", StringComparison.OrdinalIgnoreCase);
+                            }
+                            catch
+                            {
+                                return false;
+                            }
+                        })
+                        /* policy.WithOrigins(
+                             "https://team-rank-banking.vercel.app",
+                             "https://team-rank-banking-mltsy6680-mr-fischs-projects.vercel.app",
+                 "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app"
+                         )*/
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials()
