@@ -25,39 +25,53 @@ namespace WebApplication4
             Console.WriteLine($"DATABASE_URL present: {!string.IsNullOrEmpty(railwayUrl)}");
             Console.WriteLine($"DB_PROVIDER: {dbProvider}");
 
-            if (!string.IsNullOrEmpty(railwayUrl) && builder.Environment.IsProduction())
-            {
-                try
-                {
-                    // Production: Railway PostgreSQL
-                    /*var npgsqlConn = ConvertRailwayUrlToNpgsql(railwayUrl);
-                    Console.WriteLine($"Connection string (masked): {MaskConnectionString(npgsqlConn)}");
+            /* if (!string.IsNullOrEmpty(railwayUrl) && builder.Environment.IsProduction())
+             {
+                 try
+                 {
+                     // Production: Railway PostgreSQL
+                     /*var npgsqlConn = ConvertRailwayUrlToNpgsql(railwayUrl);
+                     Console.WriteLine($"Connection string (masked): {MaskConnectionString(npgsqlConn)}");
 
-                    builder.Services.AddDbContext<AppDbContext>(options =>
-                        options.UseNpgsql(npgsqlConn)
-                               .EnableSensitiveDataLogging()
-                               .LogTo(Console.WriteLine, LogLevel.Information)
-                    );*/
+                     builder.Services.AddDbContext<AppDbContext>(options =>
+                         options.UseNpgsql(npgsqlConn)
+                                .EnableSensitiveDataLogging()
+                                .LogTo(Console.WriteLine, LogLevel.Information)
+                     );*/
 
-                    var defaultConn = builder.Configuration.GetConnectionString("DefaultConnection");
+            /*   var defaultConn = builder.Configuration.GetConnectionString("DefaultConnection");
 
-                    builder.Services.AddDbContext<AppDbContext>(options =>
-                        options.UseNpgsql(defaultConn)
-                               .EnableSensitiveDataLogging()
-                               .LogTo(Console.WriteLine, LogLevel.Information)
-                    );
-                    Console.WriteLine("Using Railway PostgreSQL database");
+            builder.Services.AddDbContext<AppDbContext>(options =>
+                options.UseNpgsql(defaultConn)
+                       .EnableSensitiveDataLogging()
+                       .LogTo(Console.WriteLine, LogLevel.Information)
+            );
+            Console.WriteLine("Using Railway PostgreSQL database");
 
-                    // Use PORT env variable for binding in production
-                    var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-                    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-                    Console.WriteLine($"Binding to port {port} for production");
-                }
-                catch (Exception ex)
+            // Use PORT env variable for binding in production
+            var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+            builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+            Console.WriteLine($"Binding to port {port} for production");   
+        }*/
+        if (builder.Environment.IsProduction())
+{
+    var defaultConn = builder.Configuration.GetConnectionString("DefaultConnection");
+
+        builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(defaultConn)
+               .EnableSensitiveDataLogging()
+               .LogTo(Console.WriteLine, LogLevel.Information)
+    );
+    Console.WriteLine("Using Render PostgreSQL database");
+
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+        builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+    Console.WriteLine($"Binding to port {port} for production");
+          /* catch (Exception ex)
                 {
                     Console.WriteLine($"Database configuration error: {ex.Message}");
                     throw;
-                }
+                }*/
             }
             else
             {
