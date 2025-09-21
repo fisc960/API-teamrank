@@ -57,21 +57,37 @@ namespace WebApplication4
 {
     var defaultConn = builder.Configuration.GetConnectionString("DefaultConnection");
 
-        builder.Services.AddDbContext<AppDbContext>(options =>
+                if (string.IsNullOrEmpty(defaultConn))
+                {
+                    Console.WriteLine("? ERROR: No connection string found for 'DefaultConnection'");
+                }
+                else
+                {
+                    Console.WriteLine($"? Using connection string (masked): {MaskConnectionString(defaultConn)}");
+                }
+
+                builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(defaultConn)
                .EnableSensitiveDataLogging()
                .LogTo(Console.WriteLine, LogLevel.Information)
     );
     Console.WriteLine("Using Render PostgreSQL database");
 
-    var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-        builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-    Console.WriteLine($"Binding to port {port} for production");
-          /* catch (Exception ex)
+                /*  var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+                builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+    Console.WriteLine($"Binding to port {port} for production");*/
+                /* catch (Exception ex)
+                      {
+                          Console.WriteLine($"Database configuration error: {ex.Message}");
+                          throw;
+                      }*/
+
+                if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PORT")))
                 {
-                    Console.WriteLine($"Database configuration error: {ex.Message}");
-                    throw;
-                }*/
+                    var port = Environment.GetEnvironmentVariable("PORT");
+                    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+                    Console.WriteLine($"Binding to port {port} for production");
+                }
             }
             else
             {
