@@ -178,11 +178,11 @@ namespace GemachApp.Controllers
         {
             return _context.Admins.Any(e => e.Id == id);
         }
-
+        /*
         public class NewAgent
         {
             public string Name { get; set; }
             public string Password { get; set; }
-        }
+        }*/
     }
 }

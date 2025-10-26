@@ -16,6 +16,6 @@ namespace GemachApp.Data
         [MaxLength(40, ErrorMessage = "The Password is too long (max 40 chars)")]
         [MinLength(6, ErrorMessage = "The Password is too short  (at least 6 chars)")]
         public string AgentPassword { get; set; } //  hash this later
-        public DateTime AgentOpenDate { get; set; }
+        public DateTime AgentOpenDate { get; set; } = DateTime.UtcNow;
     }
 }

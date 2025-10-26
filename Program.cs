@@ -12,6 +12,9 @@ namespace WebApplication4
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+            Console.WriteLine($"?? Initial DefaultConnection from appsettings/environment: {connectionString}");
+
             // Determine environment
             var env = builder.Environment.EnvironmentName;
             Console.WriteLine($"Environment: {env}");
