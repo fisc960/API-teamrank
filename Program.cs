@@ -151,6 +151,7 @@ namespace WebApplication4
                     }
                     else
                     {
+                        /*
                         //  Production & Preview: allow all vercel.app subdomains
                         policy.SetIsOriginAllowed(origin =>
                         {
@@ -165,12 +166,13 @@ namespace WebApplication4
                             {
                                 return false;
                             }
-                        })
-                        /* policy.WithOrigins(
+                        })  
+                        */
+                        policy.WithOrigins(
                              "https://team-rank-banking.vercel.app",
                              "https://team-rank-banking-mltsy6680-mr-fischs-projects.vercel.app",
                  "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app"
-                         )*/
+                         )
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials()
