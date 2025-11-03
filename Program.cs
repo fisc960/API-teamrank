@@ -15,7 +15,11 @@ namespace WebApplication4
 
             //  Always bind to the PORT environment variable (Railway requirement)
             var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-            builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+            /*builder.WebHost.UseUrls($"http://0.0.0.0:{port}");*/
+            builder.WebHost.ConfigureKestrel(options =>
+            {
+                options.ListenAnyIP(int.Parse(port));
+            });
             Console.WriteLine($" Binding to port {port}");
 
             //  Log environment details 
