@@ -74,6 +74,9 @@ var app = builder.Build();
 // ------------------------------
 // MIDDLEWARE CONFIGURATION
 // ------------------------------
+
+app.UseRouting();
+
 app.UseCors("AllowAll");
 
 // Enable Swagger only in dev mode
@@ -91,6 +94,10 @@ if (!app.Environment.IsProduction())
 
 app.UseAuthorization();
 app.MapControllers();
+
+
+//  KEEP INSTANCE AWAKE
+app.MapGet("/", () => "API Running");
 
 // ------------------------------
 // PORT BINDING (Railway & Vercel)
