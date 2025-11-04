@@ -42,6 +42,9 @@ var app = builder.Build();
 // ------------------------------
 // MIDDLEWARE
 // ------------------------------
+
+app.UseRouting();
+
 app.UseCors("AllowAll");
 
 if (app.Environment.IsDevelopment())
@@ -51,10 +54,10 @@ if (app.Environment.IsDevelopment())
 }
 
 // Only redirect HTTPS locally (Railway terminates HTTPS itself)
-if (!app.Environment.IsProduction())
+/*if (!app.Environment.IsProduction())
 {
     app.UseHttpsRedirection();
-}
+}*/
 
 app.UseAuthorization();
 app.MapControllers();
