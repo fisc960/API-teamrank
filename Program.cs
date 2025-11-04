@@ -1,92 +1,56 @@
 ﻿
 
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using GemachApp.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ------------------------------
-// ENVIRONMENT & LOGGING
-// ------------------------------
-Console.WriteLine($"Environment: {builder.Environment.EnvironmentName}");
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
+// -------------------------
+//  DB CONNECTION (Railway + Aiven + Vercel)
+// -------------------------
+var connectionString =
+    Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
-// ------------------------------
-// DATABASE CONFIGURATION
-// ------------------------------
-var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER") ?? "postgres";
-
-// Read connection from:
-// 1️⃣ Railway variable: ConnectionStrings__DefaultConnection
-// 2️⃣ appsettings.json: ConnectionStrings:DefaultConnection
-var envConn = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
-var configConn = builder.Configuration.GetConnectionString("DefaultConnection");
-
-// Select which one to use
-string connectionString = envConn ?? configConn;
-
-if (string.IsNullOrWhiteSpace(connectionString))
+if (string.IsNullOrEmpty(connectionString))
 {
-    Console.WriteLine(" No database connection string found in environment or configuration!");
+    Console.WriteLine(" ERROR: No DB connection string found.");
 }
 else
 {
-    Console.WriteLine($" Using database provider: {dbProvider}");
-    Console.WriteLine($" Connection string starts with: {connectionString.Substring(0, Math.Min(connectionString.Length, 80))}...");
+    Console.WriteLine($" DB Connection Loaded (first 60 chars): {connectionString[..Math.Min(connectionString.Length, 60)]}...");
 }
 
-// Register DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString, npgsqlOptions =>
-        npgsqlOptions.CommandTimeout(30))
-    .EnableSensitiveDataLogging()
-    .LogTo(Console.WriteLine, LogLevel.Information)
-);
-
-// ------------------------------
-// CORS SETUP
-// ------------------------------
-builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        policy => policy
-            .AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader());
+    options.UseNpgsql(connectionString);
 });
 
-// ------------------------------
-// CONTROLLERS + JSON
-// ------------------------------
-builder.Services.AddControllers()
-    .AddJsonOptions(opts => opts.JsonSerializerOptions.PropertyNamingPolicy = null);
+// CORS (allow frontend)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+});
 
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
 // ------------------------------
-// MIDDLEWARE CONFIGURATION
+// MIDDLEWARE
 // ------------------------------
-
-app.UseRouting();
-
 app.UseCors("AllowAll");
 
-// Enable Swagger only in dev mode
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// Enable HTTPS only for local/dev (Railway uses HTTP proxy)
+// Only redirect HTTPS locally (Railway terminates HTTPS itself)
 if (!app.Environment.IsProduction())
 {
     app.UseHttpsRedirection();
@@ -95,20 +59,15 @@ if (!app.Environment.IsProduction())
 app.UseAuthorization();
 app.MapControllers();
 
-
-//  KEEP INSTANCE AWAKE
-app.MapGet("/", () => "API Running");
+app.MapGet("/", () => "API Running on Railway / Vercel");
 
 // ------------------------------
-// PORT BINDING (Railway & Vercel)
+// PORT BINDING (Railway / Vercel)
 // ------------------------------
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Urls.Add($"http://0.0.0.0:{port}");
-Console.WriteLine($"🌐 Binding to port {port}");
+Console.WriteLine($" Binding to port {port}");
 
-// ------------------------------
-// RUN APP
-// ------------------------------
 app.Run();
 
 
