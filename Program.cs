@@ -1,224 +1,108 @@
 ﻿
 
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
-using GemachApp.Data;
-using GemachApp.Services;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using GemachApp.Data;
 
-namespace WebApplication4
+var builder = WebApplication.CreateBuilder(args);
+
+// ------------------------------
+// ENVIRONMENT & LOGGING
+// ------------------------------
+Console.WriteLine($"Environment: {builder.Environment.EnvironmentName}");
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+
+// ------------------------------
+// DATABASE CONFIGURATION
+// ------------------------------
+var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER") ?? "postgres";
+
+// Read connection from:
+// 1️⃣ Railway variable: ConnectionStrings__DefaultConnection
+// 2️⃣ appsettings.json: ConnectionStrings:DefaultConnection
+var envConn = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+var configConn = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Select which one to use
+string connectionString = envConn ?? configConn;
+
+if (string.IsNullOrWhiteSpace(connectionString))
 {
-    public class Program
-    {
-        public static void Main(string[] args)
-        {
-            var builder = WebApplication.CreateBuilder(args);
-
-            //  Always bind to the PORT environment variable (Railway requirement)
-            var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-            /*builder.WebHost.UseUrls($"http://0.0.0.0:{port}");*/
-            builder.WebHost.ConfigureKestrel(options =>
-            {
-                options.ListenAnyIP(int.Parse(port));
-            });
-            Console.WriteLine($" Binding to port {port}");
-
-            //  Log environment details 
-            Console.WriteLine($"Environment: {builder.Environment.EnvironmentName}");
-            Console.WriteLine($"Current Directory: {Directory.GetCurrentDirectory()}");
-            Console.WriteLine($"Assembly Location: {System.Reflection.Assembly.GetExecutingAssembly().Location}");
-
-            // -------------------- DATABASE CONFIG --------------------
-            var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER") ?? "postgres";
-
-            // Try environment variable first (used in Railway)
-            var envConn = Environment.GetEnvironmentVariable("DefaultConnection");
-
-            // Fallback to appsettings.json if local
-            var configConn = builder.Configuration.GetConnectionString("DefaultConnection");
-
-            var connectionString = !string.IsNullOrEmpty(envConn)
-                ? envConn
-                : configConn;
-
-            Console.WriteLine($"Using DB Provider: {dbProvider}");
-            Console.WriteLine($"Using connection string: {connectionString.Substring(0, Math.Min(connectionString.Length, 80))}...");
-
-
-
-
-            /*// Database setup
-            var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER") ?? "postgres";
-            var defaultConn = builder.Configuration.GetConnectionString("DefaultConnection");
-            var envConn = Environment.GetEnvironmentVariable("DATABASE_URL");
-
-            string connectionString;
-
-            if (!string.IsNullOrEmpty(envConn))
-            {
-                connectionString = ConvertToNpgsqlFormat(envConn);
-                Console.WriteLine($"Using DATABASE_URL from environment.");
-            }
-            else if (!string.IsNullOrEmpty(defaultConn))
-            {
-                connectionString = defaultConn;
-                Console.WriteLine($"Using DefaultConnection from appsettings.json.");
-            }
-            else
-            {
-                throw new Exception(" No database connection string found!");
-            }*/
-
-            Console.WriteLine($"🔒 Connection string (masked): {MaskConnectionString(connectionString)}");
-
-            builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseNpgsql(connectionString, npgsqlOptions =>
-        npgsqlOptions.CommandTimeout(30))
-                       .EnableSensitiveDataLogging()
-                       .LogTo(Console.WriteLine, LogLevel.Information)
-            );
-
-            Console.WriteLine(" Using Aiven PostgreSQL database");
-
-            // Register Services 
-            builder.Services.AddScoped<IAccountService, AccountService>();
-            builder.Services.AddTransient<IEmailService, EmailService>();
-
-            //  Add Controllers & Swagger 
-            builder.Services.AddControllers();
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
-
-            //  Logging 
-            builder.Logging.AddConsole();
-            builder.Logging.SetMinimumLevel(LogLevel.Information);
-
-            // CORS Configuration 
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("FrontendPolicy", policy =>
-                {
-                    if (builder.Environment.IsDevelopment())
-                    {
-                        // Local React dev servers
-                        policy.WithOrigins(
-                            "http://localhost:5173",
-                            "https://localhost:5173",
-                            "https://localhost:5174"
-                        )
-                        .AllowAnyHeader()
-                        .AllowAnyMethod()
-                        .AllowCredentials();
-                    }
-                    else
-                    {
-                        // Production: allow Vercel frontend domains
-                        policy.WithOrigins(
-                            "https://team-rank-banking.vercel.app",
-                            "https://team-rank-banking-mltsy6680-mr-fischs-projects.vercel.app",
-                            "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app"
-                        )
-                        .AllowAnyHeader()
-                        .AllowAnyMethod()
-                        .AllowCredentials()
-                        .SetPreflightMaxAge(TimeSpan.FromSeconds(86400));
-                    }
-                });
-            });
-
-            var app = builder.Build();
-
-            Console.WriteLine(" Building application complete, configuring middleware...");
-
-            //  Global Exception Handling 
-            app.UseExceptionHandler(appError =>
-            {
-                appError.Run(async context =>
-                {
-                    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-                    var contextFeature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
-                    if (contextFeature != null)
-                    {
-                        logger.LogError(contextFeature.Error, "Unhandled exception occurred");
-                        await context.Response.WriteAsync($"Error: {contextFeature.Error.Message}");
-                    }
-                });
-            });
-
-            //  Request Logging 
-            app.Use(async (context, next) =>
-            {
-                Console.WriteLine($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] {context.Request.Method} {context.Request.Path}{context.Request.QueryString}");
-                Console.WriteLine($"Origin: {context.Request.Headers.Origin}");
-                Console.WriteLine($"User-Agent: {context.Request.Headers.UserAgent}");
-                await next();
-                Console.WriteLine($"Response: {context.Response.StatusCode}");
-            });
-
-            //  Development-specific Middleware 
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-                app.UseSwagger();
-                app.UseSwaggerUI(c =>
-                {
-                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "GemachApp API v1");
-                });
-            }
-
-            //  HTTPS only in local environments 
-            if (!app.Environment.IsProduction())
-            {
-                app.UseHttpsRedirection();
-            }
-
-            app.UseRouting();
-            app.UseCors("FrontendPolicy");
-            app.UseAuthorization();
-
-            //  Map Controllers 
-            app.MapControllers();
-
-            //  Health check route (Railway needs this!)
-            app.MapGet("/", () => Results.Ok(" GemachApp API is running on Railway"));
-
-            app.Run();
-        }
-
-        //  Helper: Convert DATABASE_URL to Npgsql format 
-        private static string ConvertToNpgsqlFormat(string databaseUrl)
-        {
-            try
-            {
-                if (databaseUrl.StartsWith("postgresql://") || databaseUrl.StartsWith("postgres://"))
-                {
-                    var uri = new Uri(databaseUrl);
-                    var userInfo = uri.UserInfo.Split(':');
-                    var connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
-                    return connectionString;
-                }
-                return databaseUrl;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error converting DATABASE_URL: {ex.Message}");
-                return databaseUrl;
-            }
-        }
-
-        // Helper: Mask password before logging 
-        private static string MaskConnectionString(string connectionString)
-        {
-            if (string.IsNullOrEmpty(connectionString)) return connectionString;
-
-            return System.Text.RegularExpressions.Regex.Replace(
-                connectionString,
-                @"Password=([^;]+)",
-                "Password=***",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase
-            );
-        }
-    }
+    Console.WriteLine(" No database connection string found in environment or configuration!");
 }
+else
+{
+    Console.WriteLine($" Using database provider: {dbProvider}");
+    Console.WriteLine($" Connection string starts with: {connectionString.Substring(0, Math.Min(connectionString.Length, 80))}...");
+}
+
+// Register DbContext
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString, npgsqlOptions =>
+        npgsqlOptions.CommandTimeout(30))
+    .EnableSensitiveDataLogging()
+    .LogTo(Console.WriteLine, LogLevel.Information)
+);
+
+// ------------------------------
+// CORS SETUP
+// ------------------------------
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        policy => policy
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
+});
+
+// ------------------------------
+// CONTROLLERS + JSON
+// ------------------------------
+builder.Services.AddControllers()
+    .AddJsonOptions(opts => opts.JsonSerializerOptions.PropertyNamingPolicy = null);
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+// ------------------------------
+// MIDDLEWARE CONFIGURATION
+// ------------------------------
+app.UseCors("AllowAll");
+
+// Enable Swagger only in dev mode
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+// Enable HTTPS only for local/dev (Railway uses HTTP proxy)
+if (!app.Environment.IsProduction())
+{
+    app.UseHttpsRedirection();
+}
+
+app.UseAuthorization();
+app.MapControllers();
+
+// ------------------------------
+// PORT BINDING (Railway & Vercel)
+// ------------------------------
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+app.Urls.Add($"http://0.0.0.0:{port}");
+Console.WriteLine($"🌐 Binding to port {port}");
+
+// ------------------------------
+// RUN APP
+// ------------------------------
+app.Run();
 
 
 
