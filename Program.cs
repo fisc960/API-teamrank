@@ -1,5 +1,4 @@
 ﻿
-
 using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
 
@@ -9,6 +8,105 @@ var builder = WebApplication.CreateBuilder(args);
 //  DB CONNECTION (Railway + Aiven + Vercel)
 // -------------------------
 var connectionString =
+    Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrEmpty(connectionString))
+{
+    Console.WriteLine(" ERROR: No DB connection string found.");
+}
+else
+{
+    Console.WriteLine($" DB Connection Loaded (first 60 chars): {connectionString[..Math.Min(connectionString.Length, 60)]}...");
+}
+
+/*builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    options.UseNpgsql(connectionString);
+});*/
+
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    options.UseNpgsql(connectionString, npgsqlOptions =>
+    {
+        npgsqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorCodesToAdd: null);
+    });
+});
+
+// CORS (allow frontend)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+});
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+try
+{
+    var app = builder.Build();
+
+    // TEST DATABASE CONNECTION BEFORE STARTING
+    Console.WriteLine("Testing database connection...");
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.CanConnectAsync();
+        Console.WriteLine("Database connection successful!");
+    }
+
+    // ------------------------------
+    // MIDDLEWARE
+    // ------------------------------
+    app.UseRouting();
+    app.UseCors("AllowAll");
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
+
+    app.UseAuthorization();
+    app.MapControllers();
+    app.MapGet("/", () => "API Running on Railway / Vercel");
+
+    // ------------------------------
+    // PORT BINDING (Railway / Vercel)
+    // ------------------------------
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    app.Urls.Add($"http://0.0.0.0:{port}");
+    Console.WriteLine($" Binding to port {port}");
+
+    app.Run(); // This blocks - nothing after this runs
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"FATAL ERROR: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    throw;
+}
+
+
+
+/*  using Microsoft.EntityFrameworkCore;
+using GemachApp.Data;
+
+
+
+
+            var builder = WebApplication.CreateBuilder(args);
+
+            // -------------------------
+            //  DB CONNECTION (Railway + Aiven + Vercel)
+            // -------------------------
+            var connectionString =
     Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
     ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -37,7 +135,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var app = builder.Build();
+/*var app = builder.Build();
 
 // ------------------------------
 // MIDDLEWARE
@@ -57,7 +155,7 @@ if (app.Environment.IsDevelopment())
 /*if (!app.Environment.IsProduction())
 {
     app.UseHttpsRedirection();
-}*/
+}*//*
 
 app.UseAuthorization();
 app.MapControllers();
@@ -71,8 +169,53 @@ var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Urls.Add($"http://0.0.0.0:{port}");
 Console.WriteLine($" Binding to port {port}");
 
-app.Run();
+app.Run();*//*
 
+try
+{
+    var app = builder.Build();
+    // ------------------------------
+    // MIDDLEWARE
+    // ------------------------------
+
+    app.UseRouting();
+
+    app.UseCors("AllowAll");
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
+
+    app.UseAuthorization();
+    app.MapControllers();
+
+    app.MapGet("/", () => "API Running on Railway / Vercel");
+
+    // ------------------------------
+    // PORT BINDING (Railway / Vercel)
+    // ------------------------------
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    app.Urls.Add($"http://0.0.0.0:{port}");
+    Console.WriteLine($" Binding to port {port}");
+
+    app.Run();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"FATAL ERROR: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    throw;
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    Console.WriteLine("Testing database connection...");
+    await db.Database.CanConnectAsync();
+    Console.WriteLine("Database connection successful!");
+}
 
 
 
