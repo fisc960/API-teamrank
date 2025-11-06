@@ -43,7 +43,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // ------------------------------
-// PORT BINDING (Railway / Vercel) - MUST BE BEFORE BUILD
+// PORT BINDING (Railway / Vercel)
 // ------------------------------
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
@@ -54,7 +54,7 @@ try
     var app = builder.Build();
 
     // ------------------------------
-    // MIDDLEWARE - SET UP ROUTES FIRST!
+    // MIDDLEWARE
     // ------------------------------
     app.UseCors("AllowAll");
 
@@ -66,21 +66,30 @@ try
 
     app.UseAuthorization();
 
-    // IMPORTANT: Register routes BEFORE testing database
+    // Register routes
     app.MapControllers();
     app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
     app.MapGet("/", () => "API Running on Railway");
 
-    // NOW test database connection (routes are already registered)
-    Console.WriteLine("Testing database connection...");
-    using (var scope = app.Services.CreateScope())
+    // Test database connection IN BACKGROUND (don't block server startup)
+    _ = Task.Run(async () =>
     {
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Database.CanConnectAsync();
-        Console.WriteLine("Database connection successful!");
-    }
+        try
+        {
+            await Task.Delay(1000); // Small delay to let server start
+            Console.WriteLine("Testing database connection...");
+            using var scope = app.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.CanConnectAsync();
+            Console.WriteLine("Database connection successful!");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Database connection failed: {ex.Message}");
+        }
+    });
 
-    // Start the server
+    // Start the server immediately
     await app.RunAsync();
 }
 catch (Exception ex)
@@ -88,11 +97,11 @@ catch (Exception ex)
     Console.WriteLine($"FATAL ERROR: {ex.Message}");
     Console.WriteLine($"Stack trace: {ex.StackTrace}");
 
-    // Keep the process alive for 30 seconds so we can see the error in logs
     Console.WriteLine("Waiting 30 seconds before exit to ensure logs are captured...");
     await Task.Delay(30000);
     throw;
 }
+
 
 
 /*  using Microsoft.EntityFrameworkCore;
