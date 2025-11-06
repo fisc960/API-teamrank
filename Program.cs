@@ -20,12 +20,6 @@ else
     Console.WriteLine($" DB Connection Loaded (first 60 chars): {connectionString[..Math.Min(connectionString.Length, 60)]}...");
 }
 
-/*builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    options.UseNpgsql(connectionString);
-});*/
-
-
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseNpgsql(connectionString, npgsqlOptions =>
@@ -48,23 +42,20 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// ------------------------------
+// PORT BINDING (Railway / Vercel) - MUST BE BEFORE BUILD
+// ------------------------------
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+Console.WriteLine($" Binding to port {port}");
+
 try
 {
     var app = builder.Build();
 
-    // TEST DATABASE CONNECTION BEFORE STARTING
-    Console.WriteLine("Testing database connection...");
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Database.CanConnectAsync();
-        Console.WriteLine("Database connection successful!");
-    }
-
     // ------------------------------
-    // MIDDLEWARE
+    // MIDDLEWARE - SET UP ROUTES FIRST!
     // ------------------------------
-    app.UseRouting();
     app.UseCors("AllowAll");
 
     if (app.Environment.IsDevelopment())
@@ -74,19 +65,23 @@ try
     }
 
     app.UseAuthorization();
+
+    // IMPORTANT: Register routes BEFORE testing database
     app.MapControllers();
-    // health check endpoint
     app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
-    app.MapGet("/", () => "API Running on Railway / Vercel");
+    app.MapGet("/", () => "API Running on Railway");
 
-    // ------------------------------
-    // PORT BINDING (Railway / Vercel)
-    // ------------------------------
-    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-    app.Urls.Add($"http://0.0.0.0:{port}");
-    Console.WriteLine($" Binding to port {port}");
+    // NOW test database connection (routes are already registered)
+    Console.WriteLine("Testing database connection...");
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.CanConnectAsync();
+        Console.WriteLine("Database connection successful!");
+    }
 
-    app.Run(); // This blocks - nothing after this runs
+    // Start the server
+    await app.RunAsync();
 }
 catch (Exception ex)
 {
@@ -98,7 +93,6 @@ catch (Exception ex)
     await Task.Delay(30000);
     throw;
 }
-
 
 
 /*  using Microsoft.EntityFrameworkCore;
