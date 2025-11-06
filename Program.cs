@@ -75,6 +75,8 @@ try
 
     app.UseAuthorization();
     app.MapControllers();
+    // health check endpoint
+    app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
     app.MapGet("/", () => "API Running on Railway / Vercel");
 
     // ------------------------------
@@ -90,6 +92,10 @@ catch (Exception ex)
 {
     Console.WriteLine($"FATAL ERROR: {ex.Message}");
     Console.WriteLine($"Stack trace: {ex.StackTrace}");
+
+    // Keep the process alive for 30 seconds so we can see the error in logs
+    Console.WriteLine("Waiting 30 seconds before exit to ensure logs are captured...");
+    await Task.Delay(30000);
     throw;
 }
 
