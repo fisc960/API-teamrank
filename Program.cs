@@ -2,8 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
 
-// Build timestamp: 2025-11-05 20:00 UTC
-
 var builder = WebApplication.CreateBuilder(args);
 
 // -------------------------
@@ -51,72 +49,82 @@ var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 Console.WriteLine($" Will bind to port {port}");
 
+var app = builder.Build();
+
+Console.WriteLine("Configuring middleware...");
+
+// ------------------------------
+// MIDDLEWARE
+// ------------------------------
+app.UseCors("AllowAll");
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseAuthorization();
+
+Console.WriteLine("Registering routes...");
+
+// Register routes with logging
+app.MapGet("/health", () =>
+{
+    Console.WriteLine("Health check endpoint called!");
+    return Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
+});
+
+app.MapGet("/", () =>
+{
+    Console.WriteLine("Root endpoint called!");
+    return "API Running on Railway";
+});
+
+app.MapControllers();
+
+Console.WriteLine("Routes registered successfully");
+
+// Test database connection IN BACKGROUND
+var dbTestTask = Task.Run(async () =>
+{
+    try
+    {
+        await Task.Delay(2000);
+        Console.WriteLine("Testing database connection...");
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.CanConnectAsync();
+        Console.WriteLine("Database connection successful!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Database connection failed: {ex.Message}");
+        Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    }
+});
+
+Console.WriteLine("Starting web server...");
+Console.WriteLine("Server should now be running indefinitely...");
+
+// Add a shutdown handler to see what triggers the shutdown
+var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+lifetime.ApplicationStopping.Register(() =>
+{
+    Console.WriteLine("!!! APPLICATION STOPPING TRIGGERED !!!");
+    Console.WriteLine($"Stack trace at shutdown: {Environment.StackTrace}");
+});
+
 try
 {
-    var app = builder.Build();
-
-    Console.WriteLine("Configuring middleware...");
-
-    // ------------------------------
-    // MIDDLEWARE
-    // ------------------------------
-    app.UseCors("AllowAll");
-
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-    }
-
-    app.UseAuthorization();
-
-    Console.WriteLine("Registering routes...");
-
-    // Register routes with logging
-    app.MapGet("/health", () =>
-    {
-        Console.WriteLine("Health check endpoint called!");
-        return Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
-    });
-
-    app.MapGet("/", () =>
-    {
-        Console.WriteLine("Root endpoint called!");
-        return "API Running on Railway";
-    });
-
-    app.MapControllers();
-
-    Console.WriteLine("Routes registered successfully");
-
-    // Test database connection IN BACKGROUND
-    _ = Task.Run(async () =>
-    {
-        try
-        {
-            await Task.Delay(2000); // Wait 2 seconds
-            Console.WriteLine("Testing database connection...");
-            using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            await db.Database.CanConnectAsync();
-            Console.WriteLine("Database connection successful!");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Database connection failed: {ex.Message}");
-        }
-    });
-
-    Console.WriteLine("Starting web server...");
     await app.RunAsync();
+    Console.WriteLine("!!! app.RunAsync() COMPLETED (this should never happen) !!!");
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"FATAL ERROR: {ex.Message}");
+    Console.WriteLine($"!!! FATAL ERROR IN RunAsync: {ex.Message}");
     Console.WriteLine($"Stack trace: {ex.StackTrace}");
-
-    Console.WriteLine("Waiting 30 seconds before exit to ensure logs are captured...");
-    await Task.Delay(30000);
+    await Task.Delay(30000); // Keep alive to see logs
     throw;
 }
 
