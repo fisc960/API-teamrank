@@ -2,6 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
 
+// Build timestamp: 2025-11-05 20:00 UTC
+
 var builder = WebApplication.CreateBuilder(args);
 
 // -------------------------
@@ -47,11 +49,13 @@ builder.Services.AddSwaggerGen();
 // ------------------------------
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-Console.WriteLine($" Binding to port {port}");
+Console.WriteLine($" Will bind to port {port}");
 
 try
 {
     var app = builder.Build();
+
+    Console.WriteLine("Configuring middleware...");
 
     // ------------------------------
     // MIDDLEWARE
@@ -66,17 +70,31 @@ try
 
     app.UseAuthorization();
 
-    // Register routes
-    app.MapControllers();
-    app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
-    app.MapGet("/", () => "API Running on Railway");
+    Console.WriteLine("Registering routes...");
 
-    // Test database connection IN BACKGROUND (don't block server startup)
+    // Register routes with logging
+    app.MapGet("/health", () =>
+    {
+        Console.WriteLine("Health check endpoint called!");
+        return Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
+    });
+
+    app.MapGet("/", () =>
+    {
+        Console.WriteLine("Root endpoint called!");
+        return "API Running on Railway";
+    });
+
+    app.MapControllers();
+
+    Console.WriteLine("Routes registered successfully");
+
+    // Test database connection IN BACKGROUND
     _ = Task.Run(async () =>
     {
         try
         {
-            await Task.Delay(1000); // Small delay to let server start
+            await Task.Delay(2000); // Wait 2 seconds
             Console.WriteLine("Testing database connection...");
             using var scope = app.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -89,7 +107,7 @@ try
         }
     });
 
-    // Start the server immediately
+    Console.WriteLine("Starting web server...");
     await app.RunAsync();
 }
 catch (Exception ex)
@@ -101,7 +119,6 @@ catch (Exception ex)
     await Task.Delay(30000);
     throw;
 }
-
 
 
 /*  using Microsoft.EntityFrameworkCore;
