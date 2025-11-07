@@ -124,6 +124,14 @@ lifetime.ApplicationStopping.Register(() =>
     Console.WriteLine($"Stack trace at shutdown: {Environment.StackTrace}");
 });
 
+
+// Run pending migrations automatically (important for Railway)
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
 try
 {
     await app.RunAsync();
