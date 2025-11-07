@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 // -------------------------
 //  DB CONNECTION (Railway + Aiven + Vercel)
 // -------------------------
+
 var connectionString =
     Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
     ?? builder.Configuration.GetConnectionString("DefaultConnection");
@@ -18,6 +19,14 @@ if (string.IsNullOrEmpty(connectionString))
 else
 {
     Console.WriteLine($" DB Connection Loaded (first 60 chars): {connectionString[..Math.Min(connectionString.Length, 60)]}...");
+    Console.WriteLine($" FULL Connection String: {connectionString}");
+
+    // Add SslMode if missing
+    if (!connectionString.Contains("SslMode"))
+    {
+        connectionString += ";SslMode=Require;Trust Server Certificate=true";
+        Console.WriteLine(" Added SslMode to connection string");
+    }
 }
 
 builder.Services.AddDbContext<AppDbContext>(options =>
