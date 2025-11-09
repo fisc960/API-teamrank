@@ -5,18 +5,18 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace GemachApp.Migrations
 {
-    public partial class InitialCreate : Migration
+    public partial class CleanContext : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
+            /*migrationBuilder.CreateTable(
                 name: "Admins",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Password = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                    PasswordHash = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false)
+                    Password = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -63,9 +63,9 @@ namespace GemachApp.Migrations
                 {
                     ClientId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    ClientFirstName = table.Column<string>(type: "text", maxLength: 40, nullable: false),
-                    ClientLastName = table.Column<string>(type: "text", maxLength: 40, nullable: false),
-                    Phonenumber = table.Column<string>(type: "text", maxLength: 18, nullable: false),
+                    ClientFirstName = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
+                    ClientLastName = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
+                    Phonenumber = table.Column<string>(type: "nvarchar(18)", maxLength: 18, nullable: false),
                     ClientOpenDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Urav = table.Column<bool>(type: "bit", nullable: false),
                     Comments = table.Column<string>(type: "nvarchar(4000)", maxLength: 4000, nullable: false),
@@ -166,15 +166,15 @@ namespace GemachApp.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Transactions_ClientId",
                 table: "Transactions",
-                column: "ClientId");
+                column: "ClientId");*/
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
+            /*migrationBuilder.DropTable(
                 name: "Admins");
 
-            migrationBuilder.DropTable(
+           migrationBuilder.DropTable(
                 name: "Agents");
 
             migrationBuilder.DropTable(
@@ -190,7 +190,7 @@ namespace GemachApp.Migrations
                 name: "Accounts");
 
             migrationBuilder.DropTable(
-                name: "Clients");
+                name: "Clients");*/
         }
     }
 }

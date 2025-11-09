@@ -58,13 +58,11 @@ namespace GemachApp.Migrations
 
                     b.Property<string>("Password")
                         .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -152,12 +150,12 @@ namespace GemachApp.Migrations
                     b.Property<string>("ClientFirstName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<string>("ClientLastName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<DateTime>("ClientOpenDate")
                         .HasColumnType("datetime2");
@@ -177,7 +175,7 @@ namespace GemachApp.Migrations
                     b.Property<string>("Phonenumber")
                         .IsRequired()
                         .HasMaxLength(18)
-                        .HasColumnType("text");
+                        .HasColumnType("nvarchar(18)");
 
                     b.Property<string>("SelectedPosition")
                         .IsRequired()

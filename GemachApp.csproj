@@ -25,11 +25,6 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Migrations\Backup\20250814204405_InitialCreate.cs\" />
-    <Folder Include="Migrations\Backup\AppDbContextModelSnapshot.cs\" />
-  </ItemGroup>
-
   <ProjectExtensions><VisualStudio><UserProperties appsettings_1development_1json__JsonSchema="https://www.schemastore.org/architectfx.json" properties_4launchsettings_1json__JsonSchema="https://api.bitbucket.org/schemas/pipelines-configuration" /></VisualStudio></ProjectExtensions>
 	
 </Project>
