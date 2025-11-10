@@ -7,7 +7,6 @@ var builder = WebApplication.CreateBuilder(args);
 // -------------------------
 //  DB CONNECTION (Railway + Aiven + Vercel)
 // -------------------------
-
 var connectionString =
     Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
     ?? builder.Configuration.GetConnectionString("DefaultConnection");
@@ -59,6 +58,24 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 Console.WriteLine($" Will bind to port {port}");
 
 var app = builder.Build();
+
+//   MIGRATIONS BEFORE ANYTHING ELSE
+Console.WriteLine("Applying database migrations...");
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.MigrateAsync();
+        Console.WriteLine(" Database migrations applied successfully!");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"❌ Migration failed: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    throw; // Stop if migrations fail
+}
 
 Console.WriteLine("Configuring middleware...");
 
@@ -116,21 +133,12 @@ var dbTestTask = Task.Run(async () =>
 Console.WriteLine("Starting web server...");
 Console.WriteLine("Server should now be running indefinitely...");
 
-// Add a shutdown handler to see what triggers the shutdown
+// Add a shutdown handler
 var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
 lifetime.ApplicationStopping.Register(() =>
 {
     Console.WriteLine("!!! APPLICATION STOPPING TRIGGERED !!!");
-    Console.WriteLine($"Stack trace at shutdown: {Environment.StackTrace}");
 });
-
-
-// Run pending migrations automatically (important for Railway)
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-}
 
 try
 {
@@ -141,10 +149,9 @@ catch (Exception ex)
 {
     Console.WriteLine($"!!! FATAL ERROR IN RunAsync: {ex.Message}");
     Console.WriteLine($"Stack trace: {ex.StackTrace}");
-    await Task.Delay(30000); // Keep alive to see logs
+    await Task.Delay(30000);
     throw;
 }
-
 
 /*  using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;

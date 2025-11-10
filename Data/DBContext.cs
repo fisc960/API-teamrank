@@ -106,10 +106,11 @@ namespace GemachApp.Data
 
                 foreach (var property in entity.GetProperties())
                 {
-                    // lowercase column name using the EF Core 6 compatible method
-                    property.SetColumnName(property.GetColumnName(StoreObjectIdentifier.Table(entity.GetTableName(), null))?.ToLower());
+                     var tableIdentifier = StoreObjectIdentifier.Table(entity.GetTableName(), null);
+        property.SetColumnName(property.GetColumnName(tableIdentifier)?.ToLower());
                 }
             }
+           
 
         }
     }
