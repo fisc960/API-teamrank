@@ -1,4 +1,5 @@
-﻿
+﻿using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore;
 
 namespace GemachApp.Data
@@ -95,6 +96,21 @@ namespace GemachApp.Data
                 e.Property(u => u.UpdatedVersion).HasMaxLength(4000);
                 e.Property(u => u.Agent).HasMaxLength(100);
             });
+
+
+            // --- lowercase convention for Postgres ---
+            foreach (var entity in modelBuilder.Model.GetEntityTypes())
+            {
+                // lowercase table name
+                entity.SetTableName(entity.GetTableName()?.ToLower());
+
+                foreach (var property in entity.GetProperties())
+                {
+                    // lowercase column name using the EF Core 6 compatible method
+                    property.SetColumnName(property.GetColumnName(StoreObjectIdentifier.Table(entity.GetTableName(), null))?.ToLower());
+                }
+            }
+
         }
     }
 }
