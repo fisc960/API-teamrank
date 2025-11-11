@@ -1,6 +1,5 @@
 ﻿
 
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
@@ -24,9 +23,9 @@ namespace GemachApp.Data
                     throw new Exception("DATABASE_URL environment variable is not set for Postgres.");
 
                 Console.WriteLine($"Using PostgreSQL: {pgConn}");
-                //optionsBuilder.UseNpgsql(pgConn, b => b.MigrationsAssembly("GemachApp.PostgresMigrations"))
+
                 optionsBuilder.UseNpgsql(pgConn, b => b.MigrationsAssembly("GemachApp"))
-            .EnableSensitiveDataLogging()
+                              .EnableSensitiveDataLogging()
                               .LogTo(Console.WriteLine);
             }
             else
@@ -40,10 +39,11 @@ namespace GemachApp.Data
 
                 var localConn = config.GetConnectionString("ApplicationDbcontext");
                 Console.WriteLine($"Using SQL Server: {localConn}");
-                optionsBuilder.UseSqlServer(localConn, b => b.MigrationsAssembly("GemachApp"));
-                              #if DEBUG
-                                 optionsBuilder.EnableSensitiveDataLogging()
-                              #endif
+
+                optionsBuilder.UseSqlServer(localConn, b => b.MigrationsAssembly("GemachApp"))
+#if DEBUG
+                              .EnableSensitiveDataLogging()
+#endif
                               .LogTo(Console.WriteLine);
             }
 
