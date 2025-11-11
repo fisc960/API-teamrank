@@ -4,10 +4,13 @@
     <TargetFramework>net6.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-	  <MigrationsAssembly>GemachApp</MigrationsAssembly>
+	 
   </PropertyGroup>
 
   <ItemGroup>
+
+	  <Compile Remove="Migrations_SqlServer\**\*.cs" />
+	  
     <PackageReference Include="Azure.Identity" Version="1.10.4" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.16.0" />
     <PackageReference Include="Microsoft.AspNetCore.Cors" Version="2.2.0" />
@@ -25,8 +28,7 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="6.0.7" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
 
-	  <Compile Remove="Migrations\**" />
-	  <Compile Remove="Migrations_SqlServer\**" />
+	
   </ItemGroup>
 
   <ProjectExtensions><VisualStudio><UserProperties appsettings_1development_1json__JsonSchema="https://www.schemastore.org/architectfx.json" properties_4launchsettings_1json__JsonSchema="https://api.bitbucket.org/schemas/pipelines-configuration" /></VisualStudio></ProjectExtensions>

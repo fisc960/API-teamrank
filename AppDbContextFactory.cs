@@ -1,5 +1,4 @@
 ﻿
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
@@ -17,20 +16,19 @@ namespace GemachApp.Data
 
             if (dbProvider.Equals("postgres", StringComparison.OrdinalIgnoreCase))
             {
-                // Postgres connection string
                 var pgConn = Environment.GetEnvironmentVariable("DATABASE_URL");
                 if (string.IsNullOrEmpty(pgConn))
                     throw new Exception("DATABASE_URL environment variable is not set for Postgres.");
 
-                Console.WriteLine($"Using PostgreSQL: {pgConn}");
+                Console.WriteLine("Using PostgreSQL...");
 
-                optionsBuilder.UseNpgsql(pgConn, b => b.MigrationsAssembly("GemachApp"))
-                              .EnableSensitiveDataLogging()
-                              .LogTo(Console.WriteLine);
+                optionsBuilder
+                    .UseNpgsql(pgConn)  
+                    .EnableSensitiveDataLogging()
+                    .LogTo(Console.WriteLine);
             }
             else
             {
-                // Local SQL Server
                 var config = new ConfigurationBuilder()
                     .SetBasePath(Directory.GetCurrentDirectory())
                     .AddJsonFile("appsettings.Local.json", optional: true)
@@ -40,20 +38,16 @@ namespace GemachApp.Data
                 var localConn = config.GetConnectionString("ApplicationDbcontext");
                 Console.WriteLine($"Using SQL Server: {localConn}");
 
-                optionsBuilder.UseSqlServer(localConn, b => b.MigrationsAssembly("GemachApp"))
-#if DEBUG
-                              .EnableSensitiveDataLogging()
-#endif
-                              .LogTo(Console.WriteLine);
+                optionsBuilder
+                    .UseSqlServer(localConn)  
+                    .EnableSensitiveDataLogging()
+                    .LogTo(Console.WriteLine);
             }
 
             return new AppDbContext(optionsBuilder.Options);
         }
     }
 }
-
-
-
 
 
 /*        #2 

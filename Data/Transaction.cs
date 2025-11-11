@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GemachApp.Data
 {
+    [Table("transactios")]
     public class Transaction
     {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

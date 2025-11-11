@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GemachApp.Data
 {
+   
     [Table("Updates")] // This tells EF to use the existing 'Updates' table
     public class UpdateLog
     {

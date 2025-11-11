@@ -1,5 +1,8 @@
-﻿namespace GemachApp.Data
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace GemachApp.Data
 {
+    [Table("accounts")]
     public class Account
     {
         public int AccountId { get; set; }
