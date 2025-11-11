@@ -28,16 +28,24 @@ else
     }
 }
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+// ===============================
+// DB PROVIDER SWITCH (SQL / PG)
+// ===============================
+var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER");
+
+if (dbProvider?.ToLower() == "postgres")
 {
-    options.UseNpgsql(connectionString, npgsqlOptions =>
-    {
-        npgsqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 3,
-            maxRetryDelay: TimeSpan.FromSeconds(5),
-            errorCodesToAdd: null);
-    });
-});
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(connectionString,
+            npgsqlOptions => npgsqlOptions.MigrationsAssembly("GemachApp")));
+}
+else
+{
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlServer(
+            builder.Configuration.GetConnectionString("DefaultConnection"),
+            sqlOptions => sqlOptions.MigrationsAssembly("GemachApp")));
+}
 
 // CORS (allow frontend)
 builder.Services.AddCors(options =>

@@ -3,47 +3,47 @@ using System;
 using GemachApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace GemachApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251110012541_RenameTablesToLowercase")]
-    partial class RenameTablesToLowercase
+    [Migration("20251111005019_InitialPostgres")]
+    partial class InitialPostgres
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "6.0.36")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("GemachApp.Data.Account", b =>
                 {
                     b.Property<int>("AccountId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("accountid");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AccountId"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("AccountId"));
 
                     b.Property<int>("ClientId")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("clientid");
 
                     b.Property<decimal?>("TotalAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("totalamount");
 
                     b.Property<DateTime>("UpdateBalDate")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updatebaldate");
 
                     b.HasKey("AccountId");
@@ -58,19 +58,19 @@ namespace GemachApp.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Password")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("password");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("passwordhash");
 
                     b.HasKey("Id");
@@ -82,25 +82,25 @@ namespace GemachApp.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AgentName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
+                        .HasColumnType("character varying(40)")
                         .HasColumnName("agentname");
 
                     b.Property<DateTime>("AgentOpenDate")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("agentopendate");
 
                     b.Property<string>("AgentPassword")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
+                        .HasColumnType("character varying(40)")
                         .HasColumnName("agentpassword");
 
                     b.HasKey("Id");
@@ -111,45 +111,45 @@ namespace GemachApp.Migrations
             modelBuilder.Entity("GemachApp.Data.Check", b =>
                 {
                     b.Property<int>("CheckId")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("checkid");
 
                     b.Property<int>("AgentId")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("agentid");
 
                     b.Property<string>("AgentName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("agentname");
 
                     b.Property<DateTime>("CheckIssuedDate")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("checkissueddate");
 
                     b.Property<int>("ClientId")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("clientid");
 
                     b.Property<string>("ClientName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("clientname");
 
                     b.Property<string>("OrderTo")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("orderto");
 
                     b.Property<int>("Sum")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("sum");
 
                     b.Property<int>("TransId")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("transid");
 
                     b.HasKey("CheckId");
@@ -161,65 +161,65 @@ namespace GemachApp.Migrations
                 {
                     b.Property<int>("ClientId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("clientid");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ClientId"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ClientId"));
 
                     b.Property<string>("Agent")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("agent");
 
                     b.Property<string>("ClientFirstName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
+                        .HasColumnType("character varying(40)")
                         .HasColumnName("clientfirstname");
 
                     b.Property<string>("ClientLastName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
+                        .HasColumnType("character varying(40)")
                         .HasColumnName("clientlastname");
 
                     b.Property<DateTime>("ClientOpenDate")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("clientopendate");
 
                     b.Property<string>("ClientPassword")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("clientpassword");
 
                     b.Property<string>("Comments")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)")
+                        .HasColumnType("character varying(4000)")
                         .HasColumnName("comments");
 
                     b.Property<string>("Email")
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("email");
 
                     b.Property<string>("Phonenumber")
                         .IsRequired()
                         .HasMaxLength(18)
-                        .HasColumnType("nvarchar(18)")
+                        .HasColumnType("character varying(18)")
                         .HasColumnName("phonenumber");
 
                     b.Property<string>("SelectedPosition")
                         .IsRequired()
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
+                        .HasColumnType("character varying(30)")
                         .HasColumnName("selectedposition");
 
                     b.Property<bool>("UpdateByEmail")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("updatebyemail");
 
                     b.Property<bool>("Urav")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("urav");
 
                     b.HasKey("ClientId");
@@ -231,51 +231,51 @@ namespace GemachApp.Migrations
                 {
                     b.Property<int>("TransId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("transid");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TransId"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TransId"));
 
                     b.Property<int?>("AccountId")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("accountid");
 
                     b.Property<decimal?>("Added")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("added");
 
                     b.Property<string>("Agent")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
+                        .HasColumnType("character varying(40)")
                         .HasColumnName("agent");
 
                     b.Property<int>("ClientId")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("clientid");
 
                     b.Property<bool>("SendEmail")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("sendemail");
 
                     b.Property<decimal?>("Subtracted")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("subtracted");
 
                     b.Property<decimal?>("TotalAdded")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("totaladded");
 
                     b.Property<decimal?>("TotalSubtracted")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("totalsubtracted");
 
                     b.Property<DateTime>("TransDate")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("transdate");
 
                     b.HasKey("TransId");
@@ -291,49 +291,49 @@ namespace GemachApp.Migrations
                 {
                     b.Property<int>("RecordId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("recordid");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RecordId"), 1L, 1);
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RecordId"));
 
                     b.Property<string>("Agent")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("agent");
 
                     b.Property<string>("ColumName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("columname");
 
                     b.Property<string>("ObjectId")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("objectid");
 
                     b.Property<string>("PrevVersion")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)")
+                        .HasColumnType("character varying(4000)")
                         .HasColumnName("prevversion");
 
                     b.Property<string>("TableName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("tablename");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("timestamp");
 
                     b.Property<string>("UpdatedVersion")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)")
+                        .HasColumnType("character varying(4000)")
                         .HasColumnName("updatedversion");
 
                     b.HasKey("RecordId");
