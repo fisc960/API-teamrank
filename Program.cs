@@ -1,4 +1,4 @@
-﻿
+﻿/*
 using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
 
@@ -159,20 +159,17 @@ catch (Exception ex)
     Console.WriteLine($"Stack trace: {ex.StackTrace}");
     await Task.Delay(30000);
     throw;
-}
+}*/
 
-/*  using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
 
+var builder = WebApplication.CreateBuilder(args);
 
-
-
-            var builder = WebApplication.CreateBuilder(args);
-
-            // -------------------------
-            //  DB CONNECTION (Railway + Aiven + Vercel)
-            // -------------------------
-            var connectionString =
+// -------------------------
+//  DB CONNECTION (Railway + Aiven + Vercel)
+// -------------------------
+var connectionString =
     Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
     ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -183,12 +180,40 @@ if (string.IsNullOrEmpty(connectionString))
 else
 {
     Console.WriteLine($" DB Connection Loaded (first 60 chars): {connectionString[..Math.Min(connectionString.Length, 60)]}...");
+    Console.WriteLine($" FULL Connection String: {connectionString}");
+
+    // Add SslMode if missing
+    if (!connectionString.Contains("SslMode"))
+    {
+        connectionString += ";SslMode=Require;Trust Server Certificate=true";
+        Console.WriteLine(" Added SslMode to connection string");
+    }
 }
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+// ===============================
+// DB PROVIDER SWITCH (SQL / PG)
+// ===============================
+var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER");
+
+if (dbProvider?.ToLower() == "postgres")
 {
-    options.UseNpgsql(connectionString);
-});
+    Console.WriteLine("Using PostgreSQL provider");
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(connectionString, npgsqlOptions =>
+        {
+            npgsqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorCodesToAdd: null);
+        }));
+}
+else
+{
+    Console.WriteLine("Using SQL Server provider");
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlServer(
+            builder.Configuration.GetConnectionString("DefaultConnection")));
+}
 
 // CORS (allow frontend)
 builder.Services.AddCors(options =>
@@ -201,14 +226,38 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-/*var app = builder.Build();
+// ------------------------------
+// PORT BINDING (Railway / Vercel)
+// ------------------------------
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+Console.WriteLine($" Will bind to port {port}");
+
+var app = builder.Build();
+
+// APPLY MIGRATIONS BEFORE ANYTHING ELSE
+Console.WriteLine("Applying database migrations...");
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.MigrateAsync();
+        Console.WriteLine(" Database migrations applied successfully!");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"❌ Migration failed: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    throw;
+}
+
+Console.WriteLine("Configuring middleware...");
 
 // ------------------------------
 // MIDDLEWARE
 // ------------------------------
-
-app.UseRouting();
-
 app.UseCors("AllowAll");
 
 if (app.Environment.IsDevelopment())
@@ -217,72 +266,37 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Only redirect HTTPS locally (Railway terminates HTTPS itself)
-/*if (!app.Environment.IsProduction())
-{
-    app.UseHttpsRedirection();
-}*//*
-
 app.UseAuthorization();
+
+Console.WriteLine("Registering routes...");
+
+app.MapGet("/health", () =>
+{
+    Console.WriteLine("Health check endpoint called!");
+    return Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
+});
+
+app.MapGet("/", () =>
+{
+    Console.WriteLine("Root endpoint called!");
+    return "API Running on Railway";
+});
+
 app.MapControllers();
 
-app.MapGet("/", () => "API Running on Railway / Vercel");
-
-// ------------------------------
-// PORT BINDING (Railway / Vercel)
-// ------------------------------
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Urls.Add($"http://0.0.0.0:{port}");
-Console.WriteLine($" Binding to port {port}");
-
-app.Run();*//*
+Console.WriteLine("Routes registered successfully");
+Console.WriteLine("Starting web server...");
 
 try
 {
-    var app = builder.Build();
-    // ------------------------------
-    // MIDDLEWARE
-    // ------------------------------
-
-    app.UseRouting();
-
-    app.UseCors("AllowAll");
-
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-    }
-
-    app.UseAuthorization();
-    app.MapControllers();
-
-    app.MapGet("/", () => "API Running on Railway / Vercel");
-
-    // ------------------------------
-    // PORT BINDING (Railway / Vercel)
-    // ------------------------------
-    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-    app.Urls.Add($"http://0.0.0.0:{port}");
-    Console.WriteLine($" Binding to port {port}");
-
-    app.Run();
+    await app.RunAsync();
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"FATAL ERROR: {ex.Message}");
-    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    Console.WriteLine($"!!! FATAL ERROR: {ex.Message}");
+    await Task.Delay(30000);
     throw;
 }
-
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    Console.WriteLine("Testing database connection...");
-    await db.Database.CanConnectAsync();
-    Console.WriteLine("Database connection successful!");
-}
-
 
 
 /*
