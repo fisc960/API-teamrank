@@ -37,7 +37,7 @@ if (dbProvider?.ToLower() == "postgres")
 {
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(connectionString,
-            npgsqlOptions => npgsqlOptions.MigrationsAssembly("GemachApp.Migrations")));
+            npgsqlOptions => npgsqlOptions.MigrationsAssembly("GemachApp")));
 }
 else
 {
