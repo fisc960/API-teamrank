@@ -37,14 +37,14 @@ if (dbProvider?.ToLower() == "postgres")
 {
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(connectionString,
-            npgsqlOptions => npgsqlOptions.MigrationsAssembly("GemachApp")));
+            npgsqlOptions => npgsqlOptions.MigrationsAssembly("GemachApp.Migrations")));
 }
 else
 {
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseSqlServer(
             builder.Configuration.GetConnectionString("DefaultConnection"),
-            sqlOptions => sqlOptions.MigrationsAssembly("GemachApp")));
+            sqlOptions => sqlOptions.MigrationsAssembly("GemachApp.Migrations_SqlServer")));
 }
 
 // CORS (allow frontend)
