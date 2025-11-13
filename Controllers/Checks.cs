@@ -45,7 +45,7 @@ namespace GemachApp.Controllers
                 }
 
                 // Set the issued date
-                check.CheckIssuedDate = DateTime.Now;
+                check.CheckIssuedDate = DateTime.UtcNow;
 
 
                 _context.Checks.Add(check);

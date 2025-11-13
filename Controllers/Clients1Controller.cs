@@ -98,11 +98,25 @@ namespace GemachApp.Controllers
                 return BadRequest(new { message = "Client ID in the URL does not match the ID in the request body." });
             }
 
-            _context.Entry(client).State = EntityState.Modified;
-
             try
             {
+                //  Handle ClientopenDate for updates
+                if (client.ClientOpenDate != default(DateTime) && client.ClientOpenDate.Kind != DateTimeKind.Utc)
+                {
+                    if (client.ClientOpenDate.Kind == DateTimeKind.Local)
+                    {
+                        client.ClientOpenDate = client.ClientOpenDate.ToUniversalTime();
+                    }
+                    else
+                    {
+                        client.ClientOpenDate = DateTime.SpecifyKind(client.ClientOpenDate, DateTimeKind.Utc);
+                    }
+                }
+
+                _context.Entry(client).State = EntityState.Modified;
                 await _context.SaveChangesAsync();
+
+                return NoContent();
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -110,13 +124,19 @@ namespace GemachApp.Controllers
                 {
                     return NotFound(new { message = $"Client with ID {ClientId} not found for update." });
                 }
-                else
-                {
-                    throw;
-                }
+                throw;
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating client: {ex.Message}");
+                Console.WriteLine($"Inner exception: {ex.InnerException?.Message}");
 
-            return NoContent();
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    message = "An error occurred while updating the client.",
+                    details = ex.InnerException?.Message ?? ex.Message
+                });
+            }
         }
 
         // POST: api/Clients1/fetchClient
@@ -163,15 +183,41 @@ namespace GemachApp.Controllers
 
             try
             {
+                // Handle ClientopenDate - Convert to UTC
+                if (client.ClientOpenDate != default(DateTime))
+                {
+                    // If the date has a specific Kind, respect it; otherwise, assume it needs to be UTC
+                    if (client.ClientOpenDate.Kind == DateTimeKind.Local)
+                    {
+                        client.ClientOpenDate = client.ClientOpenDate.ToUniversalTime();
+                    }
+                    else if (client.ClientOpenDate.Kind == DateTimeKind.Unspecified)
+                    {
+                        client.ClientOpenDate = DateTime.SpecifyKind(client.ClientOpenDate, DateTimeKind.Utc);
+                    }
+                }
+                else
+                {
+                    // If no date provided, use current UTC time
+                    client.ClientOpenDate = DateTime.UtcNow;
+                }
+
                 _context.Clients.Add(client);
                 await _context.SaveChangesAsync();
 
-                // Return 201 Created with the URI of the new resource
                 return CreatedAtAction(nameof(GetClient), new { ClientId = client.ClientId }, client);
             }
             catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An error occurred while creating the client.", details = ex.Message });
+                Console.WriteLine($"Error creating client: {ex.Message}");
+                Console.WriteLine($"Inner exception: {ex.InnerException?.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    message = "An error occurred while creating the client.",
+                    details = ex.InnerException?.Message ?? ex.Message
+                });
             }
         }
 
