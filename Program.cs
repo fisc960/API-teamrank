@@ -218,8 +218,19 @@ else
 // CORS (allow frontend)
 builder.Services.AddCors(options =>
 {
+    /*options.AddPolicy("AllowAll", policy =>
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());*/
     options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+        policy.WithOrigins(
+            "https://team-rank-banking.vercel.app",
+            "https://team-rank-banking-bx717h16t-mr-fischs-projects.vercel.app",
+            "http://localhost:3000",  // For local frontend testing
+            "http://localhost:5173"   // If using Vite locally
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials());  // ✅ This allows cookies/auth
+
 });
 
 builder.Services.AddControllers();
