@@ -71,7 +71,7 @@ namespace GemachApp.Controllers
         {
             if (ModelState.IsValid)
             {
-                account.UpdateBalDate = DateTime.Now;
+                account.UpdateBalDate = DateTime.UtcNow;
                 _context.Add(account);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
@@ -113,7 +113,7 @@ namespace GemachApp.Controllers
             {
                 try
                 {
-                    account.UpdateBalDate = DateTime.Now;
+                    account.UpdateBalDate = DateTime.UtcNow;
                     _context.Update(account);
                     await _context.SaveChangesAsync();
                 }

@@ -68,7 +68,7 @@ namespace GemachApp.Controllers
                 {
                     AgentName = dto.Name,
                     AgentPassword = dto.Password, // In production, hash passwords!
-                    AgentOpenDate = DateTime.Now,
+                    AgentOpenDate = DateTime.UtcNow,
                 };
 
                 Console.WriteLine($"About to add agent to context: {agent.AgentName}");

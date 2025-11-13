@@ -88,7 +88,7 @@ namespace GemachApp.Controllers
 
             try
             {
-                transaction.TransDate = DateTime.Now;
+                transaction.TransDate = DateTime.UtcNow;
 
                 if (string.IsNullOrWhiteSpace(transaction.Agent))
                 {
@@ -107,7 +107,7 @@ namespace GemachApp.Controllers
                     account.TotalAmount -= transaction.Subtracted ?? 0;
 
                     // Step 2: Update balance date
-                    account.UpdateBalDate = DateTime.Now;
+                    account.UpdateBalDate = DateTime.UtcNow;
 
                     _context.Accounts.Update(account);
                 }
@@ -437,7 +437,7 @@ namespace GemachApp.Controllers
                             $"Subtracted: {(subtractAmount > 0 ? $"${subtractAmount:F2}" : "N/A")}\n" +
                             $"New Balance: ${account.TotalAmount:F2}\n\n" +
                             $"Transaction processed by: {request.Agent}\n" +
-                            $"Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}"
+                            $"Date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}"
                         );
                     }
                     catch (Exception emailEx)
