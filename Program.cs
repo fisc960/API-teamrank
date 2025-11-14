@@ -229,10 +229,12 @@ builder.Services.AddCors(options =>
         )
         .AllowAnyHeader()
         .AllowAnyMethod()
-        .AllowCredentials());  // ✅ This allows cookies/auth
+        .AllowCredentials());  //  This allows cookies/auth
 
 });
 
+
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

@@ -13,7 +13,7 @@ namespace GemachApp.Controllers
         private readonly AppDbContext _context;
         private readonly IEmailService _emailService;
 
-        public TransactionsController(AppDbContext context, IEmailService emailService)
+        public TransactionsController(AppDbContext context, IEmailService? emailService)
         {
             _context = context;
             _emailService = emailService;
