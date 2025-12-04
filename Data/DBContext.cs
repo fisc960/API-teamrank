@@ -84,6 +84,7 @@ namespace GemachApp.Data
                 e.Property(c => c.ClientName).HasMaxLength(100);
                 e.Property(c => c.OrderTo).HasMaxLength(100);
                 e.Property(c => c.AgentName).HasMaxLength(100);
+                e.Property(c => c.Sum).HasPrecision(18, 2);
             });
 
             //  UpdateLog

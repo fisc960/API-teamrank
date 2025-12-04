@@ -9,10 +9,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace GemachApp.Migrations_SqlServer
+namespace GemachApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251111001958_InitialSqlServer")]
+    [Migration("20251117013640_InitialSqlServer")]
     partial class InitialSqlServer
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -144,8 +144,9 @@ namespace GemachApp.Migrations_SqlServer
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("orderto");
 
-                    b.Property<int>("Sum")
-                        .HasColumnType("int")
+                    b.Property<decimal>("Sum")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("sum");
 
                     b.Property<int>("TransId")

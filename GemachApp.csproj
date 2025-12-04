@@ -9,7 +9,7 @@
 
   <ItemGroup>
 
-	  <Compile Remove="Migrations_SqlServer\**\*.cs" />
+	<!-->  <  Compile Remove="Migrations_SqlServer\**\*.cs" />  -->
 	  
     <PackageReference Include="Azure.Identity" Version="1.10.4" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.16.0" />

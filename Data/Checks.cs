@@ -12,7 +12,7 @@ namespace GemachApp.Data
         public string ClientName { get; set; }    // First + " " + Last name
         public int ClientId { get; set; }
         public string OrderTo { get; set; }
-        public int Sum { get; set; }
+        public decimal Sum { get; set; }
         public int TransId { get; set; }
         public string AgentName { get; set; }
         public int AgentId { get; set; }

@@ -1,95 +1,98 @@
-﻿/*
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// -------------------------
-//  DB CONNECTION (Railway + Aiven + Vercel)
-// -------------------------
-var connectionString =
-    Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-    ?? builder.Configuration.GetConnectionString("DefaultConnection");
+// ----------------------------------
+// 1. LOAD CONNECTION STRING
+// ----------------------------------
+var envConn = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+var localConn = builder.Configuration.GetConnectionString("ApplicationDbcontext");
 
-if (string.IsNullOrEmpty(connectionString))
+var connectionString = !string.IsNullOrEmpty(envConn)
+    ? envConn
+    : localConn;
+
+Console.WriteLine("\n--- DATABASE CONNECTION ---");
+Console.WriteLine("Loaded connection string: " + connectionString);
+Console.WriteLine("----------------------------\n");
+
+// ----------------------------------
+// 2. CHOOSE PROVIDER
+// ----------------------------------
+var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER")?.ToLower();
+
+if (dbProvider == "postgres")
 {
-    Console.WriteLine(" ERROR: No DB connection string found.");
+    Console.WriteLine("🟦 Using POSTGRESQL provider (Railway)");
+
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(connectionString));
 }
 else
 {
-    Console.WriteLine($" DB Connection Loaded (first 60 chars): {connectionString[..Math.Min(connectionString.Length, 60)]}...");
-    Console.WriteLine($" FULL Connection String: {connectionString}");
+    Console.WriteLine("🟥 Using SQL SERVER provider (Localhost)");
 
-    // Add SslMode if missing
-    if (!connectionString.Contains("SslMode"))
-    {
-        connectionString += ";SslMode=Require;Trust Server Certificate=true";
-        Console.WriteLine(" Added SslMode to connection string");
-    }
-}
-
-// ===============================
-// DB PROVIDER SWITCH (SQL / PG)
-// ===============================
-var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER");
-
-if (dbProvider?.ToLower() == "postgres")
-{
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(connectionString,
-            npgsqlOptions => npgsqlOptions.MigrationsAssembly("GemachApp")));
-}
-else
-{
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlServer(
-            builder.Configuration.GetConnectionString("DefaultConnection"),
-            sqlOptions => sqlOptions.MigrationsAssembly("GemachApp.Migrations_SqlServer")));
+        options.UseSqlServer(connectionString));
+
+    builder.Services.AddScoped<IEmailService, EmailService>();
 }
 
-// CORS (allow frontend)
+// ----------------------------------
+// 3. CORS
+// ----------------------------------
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+        policy.WithOrigins(
+            "https://team-rank-banking.vercel.app",
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5175",
+            "http://localhost:5176"
+        )
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials());
 });
 
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddEndpointsApiExplorer();
 
-// ------------------------------
-// PORT BINDING (Railway / Vercel)
-// ------------------------------
+// ----------------------------------
+// 4. PORT BINDING
+// ----------------------------------
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-Console.WriteLine($" Will bind to port {port}");
 
 var app = builder.Build();
 
-//   MIGRATIONS BEFORE ANYTHING ELSE
+// ----------------------------------
+// 5. APPLY MIGRATIONS
+// ----------------------------------
 Console.WriteLine("Applying database migrations...");
+
 try
 {
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Database.MigrateAsync();
-        Console.WriteLine(" Database migrations applied successfully!");
-    }
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+
+    Console.WriteLine("✅ Migrations applied successfully!");
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"❌ Migration failed: {ex.Message}");
-    Console.WriteLine($"Stack trace: {ex.StackTrace}");
-    throw; // Stop if migrations fail
+    Console.WriteLine("❌ Migration failed: " + ex.Message);
+    Console.WriteLine(ex.StackTrace);
+    throw;
 }
 
-Console.WriteLine("Configuring middleware...");
-
-// ------------------------------
-// MIDDLEWARE
-// ------------------------------
+// ----------------------------------
+// 6. MIDDLEWARE
+// ----------------------------------
 app.UseCors("AllowAll");
 
 if (app.Environment.IsDevelopment())
@@ -100,66 +103,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthorization();
 
-Console.WriteLine("Registering routes...");
-
-// Register routes with logging
-app.MapGet("/health", () =>
-{
-    Console.WriteLine("Health check endpoint called!");
-    return Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
-});
-
-app.MapGet("/", () =>
-{
-    Console.WriteLine("Root endpoint called!");
-    return "API Running on Railway";
-});
-
 app.MapControllers();
+app.MapGet("/", () => "Gemach API is running.");
 
-Console.WriteLine("Routes registered successfully");
+await app.RunAsync();
 
-// Test database connection IN BACKGROUND
-var dbTestTask = Task.Run(async () =>
-{
-    try
-    {
-        await Task.Delay(2000);
-        Console.WriteLine("Testing database connection...");
-        using var scope = app.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Database.CanConnectAsync();
-        Console.WriteLine("Database connection successful!");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Database connection failed: {ex.Message}");
-        Console.WriteLine($"Stack trace: {ex.StackTrace}");
-    }
-});
-
-Console.WriteLine("Starting web server...");
-Console.WriteLine("Server should now be running indefinitely...");
-
-// Add a shutdown handler
-var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
-lifetime.ApplicationStopping.Register(() =>
-{
-    Console.WriteLine("!!! APPLICATION STOPPING TRIGGERED !!!");
-});
-
-try
-{
-    await app.RunAsync();
-    Console.WriteLine("!!! app.RunAsync() COMPLETED (this should never happen) !!!");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"!!! FATAL ERROR IN RunAsync: {ex.Message}");
-    Console.WriteLine($"Stack trace: {ex.StackTrace}");
-    await Task.Delay(30000);
-    throw;
-}*/
+/*
 
 using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
@@ -171,7 +120,7 @@ var builder = WebApplication.CreateBuilder(args);
 // -------------------------
 var connectionString =
     Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-    ?? builder.Configuration.GetConnectionString("DefaultConnection");
+    ?? builder.Configuration.GetConnectionString("ApplicationDbcontext");
 
 if (string.IsNullOrEmpty(connectionString))
 {
@@ -183,11 +132,11 @@ else
     Console.WriteLine($" FULL Connection String: {connectionString}");
 
     // Add SslMode if missing
-    if (!connectionString.Contains("SslMode"))
+   /*if (!connectionString.Contains("SslMode"))
     {
         connectionString += ";SslMode=Require;Trust Server Certificate=true";
         Console.WriteLine(" Added SslMode to connection string");
-    }
+    }*//*
 }
 
 // ===============================
@@ -205,15 +154,14 @@ else
 {
     Console.WriteLine("Using SQL Server provider");
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlServer(
-            builder.Configuration.GetConnectionString("DefaultConnection")));
+        options.UseSqlServer(connectionString)); 
 }
 
 // CORS (allow frontend)
 builder.Services.AddCors(options =>
 {
     /*options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());*/
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());*//*
     options.AddPolicy("AllowAll", policy =>
         policy.WithOrigins(
             "https://team-rank-banking.vercel.app",
