@@ -1,4 +1,123 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿
+using Microsoft.EntityFrameworkCore;
+using GemachApp.Data;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// ----------------------------------
+// 1. LOAD CONNECTION STRING
+// ----------------------------------
+
+// Railway always provides DATABASE_URL for PostgreSQL
+var railwayUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+
+// Local SQL Server connection
+var localConn = builder.Configuration.GetConnectionString("ApplicationDbcontext");
+
+var isPostgres = Environment.GetEnvironmentVariable("DB_PROVIDER")?.ToLower() == "postgres";
+
+var connectionString = isPostgres ? railwayUrl : localConn;
+
+Console.WriteLine("\n--- DATABASE CONNECTION ---");
+Console.WriteLine("Loaded connection string: " + connectionString);
+Console.WriteLine("----------------------------\n");
+
+// ----------------------------------
+// 2. CHOOSE PROVIDER
+// ----------------------------------
+if (isPostgres)
+{
+    Console.WriteLine("🟦 Using POSTGRESQL provider (Railway)");
+
+    // Convert DATABASE_URL into Npgsql format
+    var builderPg = new Npgsql.NpgsqlConnectionStringBuilder(connectionString)
+    {
+        SslMode = Npgsql.SslMode.Require,
+        TrustServerCertificate = true
+    };
+
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(builderPg.ToString()));
+}
+else
+{
+    Console.WriteLine("🟥 Using SQL SERVER provider (Localhost)");
+
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlServer(connectionString));
+}
+
+// ----------------------------------
+// 3. CORS
+// ----------------------------------
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+        policy.WithOrigins(
+            "https://team-rank-banking.vercel.app",
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5175",
+            "http://localhost:5176"
+        )
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials());
+});
+
+builder.Services.AddControllers();
+builder.Services.AddSwaggerGen();
+builder.Services.AddEndpointsApiExplorer();
+
+// ----------------------------------
+// 4. PORT BINDING
+// ----------------------------------
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
+var app = builder.Build();
+
+// ----------------------------------
+// 5. APPLY MIGRATIONS
+// ----------------------------------
+Console.WriteLine("Applying database migrations...");
+
+try
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+
+    Console.WriteLine("✅ Migrations applied successfully!");
+}
+catch (Exception ex)
+{
+    Console.WriteLine("❌ Migration failed: " + ex.Message);
+    Console.WriteLine(ex.StackTrace);
+    throw;
+}
+
+// ----------------------------------
+// 6. MIDDLEWARE
+// ----------------------------------
+app.UseCors("AllowAll");
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseAuthorization();
+app.MapControllers();
+app.MapGet("/", () => "Gemach API is running.");
+
+await app.RunAsync();
+
+
+/*
+using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -107,7 +226,7 @@ app.MapControllers();
 app.MapGet("/", () => "Gemach API is running.");
 
 await app.RunAsync();
-
+*/
 /*
 
 using Microsoft.EntityFrameworkCore;
