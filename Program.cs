@@ -54,6 +54,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
         policy.WithOrigins(
+            "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
             "https://team-rank-banking.vercel.app",
             "http://localhost:3000",
             "http://localhost:5173",
