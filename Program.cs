@@ -9,7 +9,10 @@ var builder = WebApplication.CreateBuilder(args);
 // ----------------------------------
 
 // Railway always provides DATABASE_URL for PostgreSQL
-var railwayUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+var railwayUrl =
+    Environment.GetEnvironmentVariable("DATABASE_URL") ??
+    Environment.GetEnvironmentVariable("POSTGRES_URL") ??
+    Environment.GetEnvironmentVariable("POSTGRES_URL_NON_POOLING");
 
 // Local SQL Server connection
 var localConn = builder.Configuration.GetConnectionString("ApplicationDbcontext");
