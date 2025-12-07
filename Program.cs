@@ -1,5 +1,5 @@
 ﻿
-using Microsoft.EntityFrameworkCore;
+/*using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -124,123 +124,96 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/", () => "Gemach API is running.");
 
-await app.RunAsync();
-/*
-{
-    Console.WriteLine("🟦 Using POSTGRESQL provider (Railway)");
-    // Convert DATABASE_URL into Npgsql format
-    var builderPg = new Npgsql.NpgsqlConnectionStringBuilder(connectionString)
-    {
-        SslMode = Npgsql.SslMode.Require,
-        TrustServerCertificate = true
-    };
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(builderPg.ToString()));
-}
+await app.RunAsync();*/
 
-{
-    Console.WriteLine("🟦 Using POSTGRESQL provider (Railway)");
 
-    // Parse the PostgreSQL URI into components
-    var uri = new Uri(connectionString);
-    var db = uri.AbsolutePath.Trim('/');
-    var userInfo = uri.UserInfo.Split(':');
-
-    // Build proper Npgsql connection string
-    var builderPg = new Npgsql.NpgsqlConnectionStringBuilder
-    {
-        Host = uri.Host,
-        Port = uri.Port,
-        Database = db,
-        Username = userInfo[0],
-        Password = userInfo[1],
-        SslMode = Npgsql.SslMode.Require,
-        TrustServerCertificate = true
-    };
-
-    Console.WriteLine($"Connecting to: {uri.Host}:{uri.Port}/{db}");
-
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(builderPg.ToString()));
-}*/
-
-/*
 using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ----------------------------------
-// 1. LOAD CONNECTION STRING
-// ----------------------------------
-var envConn = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
-var localConn = builder.Configuration.GetConnectionString("ApplicationDbcontext");
-
-var connectionString = !string.IsNullOrEmpty(envConn)
-    ? envConn
-    : localConn;
-
-Console.WriteLine("\n--- DATABASE CONNECTION ---");
-Console.WriteLine("Loaded connection string: " + connectionString);
-Console.WriteLine("----------------------------\n");
-
-// ----------------------------------
-// 2. CHOOSE PROVIDER
-// ----------------------------------
+// -----------------------------------------------------
+// 1. READ ENVIRONMENT VARIABLES
+// -----------------------------------------------------
 var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER")?.ToLower();
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL"); // Railway Postgres
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 
+Console.WriteLine("\n--- ENVIRONMENT SETTINGS ---");
+Console.WriteLine("DB_PROVIDER: " + dbProvider);
+Console.WriteLine("DATABASE_URL: " + (databaseUrl != null ? "FOUND" : "NOT FOUND"));
+Console.WriteLine("PORT: " + port);
+Console.WriteLine("-----------------------------\n");
+
+// -----------------------------------------------------
+// 2. CONFIGURE DB PROVIDER
+// -----------------------------------------------------
 if (dbProvider == "postgres")
 {
-    Console.WriteLine("🟦 Using POSTGRESQL provider (Railway)");
+    Console.WriteLine("🟦 Using POSTGRESQL (Railway)");
+
+    if (string.IsNullOrWhiteSpace(databaseUrl))
+        throw new Exception("❌ ERROR: DATABASE_URL not found. Railway requires DATABASE_URL.");
+
+    // Convert DATABASE_URL to Npgsql connection string
+    var npgsqlBuilder = new Npgsql.NpgsqlConnectionStringBuilder(databaseUrl)
+    {
+        SslMode = Npgsql.SslMode.Require,
+        TrustServerCertificate = true
+    };
 
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(connectionString));
+        options.UseNpgsql(npgsqlBuilder.ConnectionString));
 }
 else
 {
-    Console.WriteLine("🟥 Using SQL SERVER provider (Localhost)");
+    Console.WriteLine("🟥 Using SQL SERVER (Local)");
+
+    var sqlConn = builder.Configuration.GetConnectionString("ApplicationDbcontext");
+
+    if (string.IsNullOrWhiteSpace(sqlConn))
+        throw new Exception("❌ ERROR: Missing ConnectionStrings:ApplicationDbcontext in appsettings.json");
 
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlServer(connectionString));
-
-    builder.Services.AddScoped<IEmailService, EmailService>();
+        options.UseSqlServer(sqlConn));
 }
 
-// ----------------------------------
-// 3. CORS
-// ----------------------------------
+// -----------------------------------------------------
+// 3. CORS CONFIG
+// -----------------------------------------------------
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
         policy.WithOrigins(
             "https://team-rank-banking.vercel.app",
+            "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
             "http://localhost:3000",
             "http://localhost:5173",
-            "http://localhost:5174",
-            "http://localhost:5175",
-            "http://localhost:5176"
+            "http://localhost:5174"
         )
         .AllowAnyMethod()
         .AllowAnyHeader()
         .AllowCredentials());
 });
 
+// -----------------------------------------------------
+// 4. ASP.NET SERVICES
+// -----------------------------------------------------
 builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();
 builder.Services.AddEndpointsApiExplorer();
 
-// ----------------------------------
-// 4. PORT BINDING
-// ----------------------------------
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+// -----------------------------------------------------
+// 5. PORT BINDING (Railway requirement)
+// -----------------------------------------------------
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 
-// ----------------------------------
-// 5. APPLY MIGRATIONS
-// ----------------------------------
-Console.WriteLine("Applying database migrations...");
+// -----------------------------------------------------
+// 6. APPLY MIGRATIONS ON START
+// -----------------------------------------------------
+Console.WriteLine("🔃 Applying database migrations...");
 
 try
 {
@@ -248,18 +221,18 @@ try
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
 
-    Console.WriteLine("✅ Migrations applied successfully!");
+    Console.WriteLine("✅ Database migrations applied successfully!");
 }
 catch (Exception ex)
 {
-    Console.WriteLine("❌ Migration failed: " + ex.Message);
+    Console.WriteLine("❌ Migration error: " + ex.Message);
     Console.WriteLine(ex.StackTrace);
     throw;
 }
 
-// ----------------------------------
-// 6. MIDDLEWARE
-// ----------------------------------
+// -----------------------------------------------------
+// 7. MIDDLEWARE + ROUTES
+// -----------------------------------------------------
 app.UseCors("AllowAll");
 
 if (app.Environment.IsDevelopment())
@@ -269,12 +242,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthorization();
-
 app.MapControllers();
-app.MapGet("/", () => "Gemach API is running.");
+app.MapGet("/", () => "Gemach API is running 🚀");
 
 await app.RunAsync();
-*/
+
 /*
 
 using Microsoft.EntityFrameworkCore;
