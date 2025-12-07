@@ -125,7 +125,7 @@ app.MapControllers();
 app.MapGet("/", () => "Gemach API is running.");
 
 await app.RunAsync();
-
+/*
 {
     Console.WriteLine("🟦 Using POSTGRESQL provider (Railway)");
     // Convert DATABASE_URL into Npgsql format
@@ -162,7 +162,7 @@ await app.RunAsync();
 
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(builderPg.ToString()));
-}
+}*/
 
 /*
 using Microsoft.EntityFrameworkCore;
