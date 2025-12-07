@@ -132,107 +132,77 @@ using GemachApp.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// -----------------------------------------------------
-// 1. READ ENVIRONMENT VARIABLES
-// -----------------------------------------------------
+// --------- ENVIRONMENT ---------
 var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER")?.ToLower();
-var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL"); // Railway Postgres
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+var localSql = builder.Configuration.GetConnectionString("ApplicationDbcontext");
 
 Console.WriteLine("\n--- ENVIRONMENT SETTINGS ---");
 Console.WriteLine("DB_PROVIDER: " + dbProvider);
-Console.WriteLine("DATABASE_URL: " + (databaseUrl != null ? "FOUND" : "NOT FOUND"));
-Console.WriteLine("PORT: " + port);
+Console.WriteLine("DATABASE_URL: " + (databaseUrl != null ? "FOUND" : "MISSING"));
+Console.WriteLine("PORT: " + Environment.GetEnvironmentVariable("PORT"));
 Console.WriteLine("-----------------------------\n");
 
-// -----------------------------------------------------
-// 2. CONFIGURE DB PROVIDER
-// -----------------------------------------------------
+// --------- DB SELECTION ---------
 if (dbProvider == "postgres")
 {
     Console.WriteLine("🟦 Using POSTGRESQL (Railway)");
 
-    if (string.IsNullOrWhiteSpace(databaseUrl))
-        throw new Exception("❌ ERROR: DATABASE_URL not found. Railway requires DATABASE_URL.");
-
-    // Convert DATABASE_URL to Npgsql connection string
-    var npgsqlBuilder = new Npgsql.NpgsqlConnectionStringBuilder(databaseUrl)
-    {
-        SslMode = Npgsql.SslMode.Require,
-        TrustServerCertificate = true
-    };
-
+    // IMPORTANT:
+    // Use DATABASE_URL directly. DO NOT use NpgsqlConnectionStringBuilder!
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(npgsqlBuilder.ConnectionString));
+        options.UseNpgsql(databaseUrl));
 }
 else
 {
-    Console.WriteLine("🟥 Using SQL SERVER (Local)");
-
-    var sqlConn = builder.Configuration.GetConnectionString("ApplicationDbcontext");
-
-    if (string.IsNullOrWhiteSpace(sqlConn))
-        throw new Exception("❌ ERROR: Missing ConnectionStrings:ApplicationDbcontext in appsettings.json");
+    Console.WriteLine("🟥 Using SQL SERVER (Localhost)");
 
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlServer(sqlConn));
+        options.UseSqlServer(localSql));
 }
 
-// -----------------------------------------------------
-// 3. CORS CONFIG
-// -----------------------------------------------------
+// --------- CORS ---------
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
         policy.WithOrigins(
-            "https://team-rank-banking.vercel.app",
             "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
+            "https://team-rank-banking.vercel.app",
             "http://localhost:3000",
-            "http://localhost:5173",
-            "http://localhost:5174"
+            "http://localhost:5173"
         )
-        .AllowAnyMethod()
         .AllowAnyHeader()
+        .AllowAnyMethod()
         .AllowCredentials());
 });
 
-// -----------------------------------------------------
-// 4. ASP.NET SERVICES
-// -----------------------------------------------------
 builder.Services.AddControllers();
-builder.Services.AddSwaggerGen();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-// -----------------------------------------------------
-// 5. PORT BINDING (Railway requirement)
-// -----------------------------------------------------
+// PORT BINDING
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 
-// -----------------------------------------------------
-// 6. APPLY MIGRATIONS ON START
-// -----------------------------------------------------
-Console.WriteLine("🔃 Applying database migrations...");
-
+// AUTO MIGRATE
 try
 {
+    Console.WriteLine("Applying migrations...");
+
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
 
-    Console.WriteLine("✅ Database migrations applied successfully!");
+    Console.WriteLine("✅ Migrations completed.");
 }
 catch (Exception ex)
 {
-    Console.WriteLine("❌ Migration error: " + ex.Message);
-    Console.WriteLine(ex.StackTrace);
+    Console.WriteLine("❌ Migration failed: " + ex.Message);
     throw;
 }
 
-// -----------------------------------------------------
-// 7. MIDDLEWARE + ROUTES
-// -----------------------------------------------------
 app.UseCors("AllowAll");
 
 if (app.Environment.IsDevelopment())
@@ -241,9 +211,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseAuthorization();
 app.MapControllers();
-app.MapGet("/", () => "Gemach API is running 🚀");
+app.MapGet("/", () => "Gemach API is running.");
 
 await app.RunAsync();
 
