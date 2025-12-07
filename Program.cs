@@ -133,6 +133,13 @@ using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Force Railway port
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(int.Parse(port));
+});
+
 // -------------------------
 //  FIX CONNECTION STRING
 // -------------------------
