@@ -127,94 +127,67 @@ app.MapGet("/", () => "Gemach API is running.");
 await app.RunAsync();*/
 
 
-using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --------- ENVIRONMENT ---------
-var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER")?.ToLower();
-var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-var localSql = builder.Configuration.GetConnectionString("ApplicationDbcontext");
+// -------------------------
+//  FIX CONNECTION STRING
+// -------------------------
+var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
-Console.WriteLine("\n--- ENVIRONMENT SETTINGS ---");
-Console.WriteLine("DB_PROVIDER: " + dbProvider);
-Console.WriteLine("DATABASE_URL: " + (databaseUrl != null ? "FOUND" : "MISSING"));
-Console.WriteLine("PORT: " + Environment.GetEnvironmentVariable("PORT"));
-Console.WriteLine("-----------------------------\n");
-
-// --------- DB SELECTION ---------
-if (dbProvider == "postgres")
+if (string.IsNullOrWhiteSpace(rawUrl))
 {
-    Console.WriteLine("🟦 Using POSTGRESQL (Railway)");
-
-    // IMPORTANT:
-    // Use DATABASE_URL directly. DO NOT use NpgsqlConnectionStringBuilder!
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(databaseUrl));
-}
-else
-{
-    Console.WriteLine("🟥 Using SQL SERVER (Localhost)");
-
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlServer(localSql));
+    throw new Exception("DATABASE_URL is missing.");
 }
 
-// --------- CORS ---------
+// Example rawUrl:
+// postgres://user:pass@host:port/dbname
+
+var databaseUri = new Uri(rawUrl);
+var userInfo = databaseUri.UserInfo.Split(':');
+
+var connectionString =
+    $"Host={databaseUri.Host};" +
+    $"Port={databaseUri.Port};" +
+    $"Username={userInfo[0]};" +
+    $"Password={userInfo[1]};" +
+    $"Database={databaseUri.AbsolutePath.TrimStart('/')};" +
+    $"SSL Mode=Require;" +
+    $"Trust Server Certificate=True;";
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+// -------------------------
+//  CORS
+// -------------------------
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowReact", policy =>
+    {
         policy.WithOrigins(
             "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
             "https://team-rank-banking.vercel.app",
-            "http://localhost:3000",
-            "http://localhost:5173"
+            "http://localhost:5173",
+            "http://localhost:3000"
         )
         .AllowAnyHeader()
         .AllowAnyMethod()
-        .AllowCredentials());
+        .AllowCredentials();
+    });
 });
 
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-// PORT BINDING
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 
-// AUTO MIGRATE
-try
-{
-    Console.WriteLine("Applying migrations...");
-
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
-
-    Console.WriteLine("✅ Migrations completed.");
-}
-catch (Exception ex)
-{
-    Console.WriteLine("❌ Migration failed: " + ex.Message);
-    throw;
-}
-
-app.UseCors("AllowAll");
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
+app.UseCors("AllowReact");
 app.MapControllers();
-app.MapGet("/", () => "Gemach API is running.");
 
-await app.RunAsync();
+app.Run();
 
 /*
 
