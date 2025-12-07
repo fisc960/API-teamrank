@@ -7,7 +7,6 @@ var builder = WebApplication.CreateBuilder(args);
 // ----------------------------------
 // 1. LOAD CONNECTION STRING
 // ----------------------------------
-
 // Railway always provides DATABASE_URL for PostgreSQL
 var railwayUrl =
     Environment.GetEnvironmentVariable("DATABASE_URL") ??
@@ -18,7 +17,6 @@ var railwayUrl =
 var localConn = builder.Configuration.GetConnectionString("ApplicationDbcontext");
 
 var isPostgres = Environment.GetEnvironmentVariable("DB_PROVIDER")?.ToLower() == "postgres";
-
 var connectionString = isPostgres ? railwayUrl : localConn;
 
 Console.WriteLine("\n--- DATABASE CONNECTION ---");
@@ -32,12 +30,24 @@ if (isPostgres)
 {
     Console.WriteLine("🟦 Using POSTGRESQL provider (Railway)");
 
-    // Convert DATABASE_URL into Npgsql format
-    var builderPg = new Npgsql.NpgsqlConnectionStringBuilder(connectionString)
+    // Parse the PostgreSQL URI into components
+    var uri = new Uri(connectionString);
+    var db = uri.AbsolutePath.Trim('/');
+    var userInfo = uri.UserInfo.Split(':');
+
+    // Build proper Npgsql connection string
+    var builderPg = new Npgsql.NpgsqlConnectionStringBuilder
     {
+        Host = uri.Host,
+        Port = uri.Port,
+        Database = db,
+        Username = userInfo[0],
+        Password = userInfo[1],
         SslMode = Npgsql.SslMode.Require,
         TrustServerCertificate = true
     };
+
+    Console.WriteLine($"Connecting to: {uri.Host}:{uri.Port}/{db}");
 
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(builderPg.ToString()));
@@ -45,7 +55,6 @@ if (isPostgres)
 else
 {
     Console.WriteLine("🟥 Using SQL SERVER provider (Localhost)");
-
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseSqlServer(connectionString));
 }
@@ -86,13 +95,11 @@ var app = builder.Build();
 // 5. APPLY MIGRATIONS
 // ----------------------------------
 Console.WriteLine("Applying database migrations...");
-
 try
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
-
     Console.WriteLine("✅ Migrations applied successfully!");
 }
 catch (Exception ex)
@@ -119,6 +126,43 @@ app.MapGet("/", () => "Gemach API is running.");
 
 await app.RunAsync();
 
+{
+    Console.WriteLine("🟦 Using POSTGRESQL provider (Railway)");
+    // Convert DATABASE_URL into Npgsql format
+    var builderPg = new Npgsql.NpgsqlConnectionStringBuilder(connectionString)
+    {
+        SslMode = Npgsql.SslMode.Require,
+        TrustServerCertificate = true
+    };
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(builderPg.ToString()));
+}
+
+{
+    Console.WriteLine("🟦 Using POSTGRESQL provider (Railway)");
+
+    // Parse the PostgreSQL URI into components
+    var uri = new Uri(connectionString);
+    var db = uri.AbsolutePath.Trim('/');
+    var userInfo = uri.UserInfo.Split(':');
+
+    // Build proper Npgsql connection string
+    var builderPg = new Npgsql.NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.Port,
+        Database = db,
+        Username = userInfo[0],
+        Password = userInfo[1],
+        SslMode = Npgsql.SslMode.Require,
+        TrustServerCertificate = true
+    };
+
+    Console.WriteLine($"Connecting to: {uri.Host}:{uri.Port}/{db}");
+
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(builderPg.ToString()));
+}
 
 /*
 using Microsoft.EntityFrameworkCore;
