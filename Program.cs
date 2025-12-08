@@ -167,7 +167,7 @@ var app = builder.Build();
     db.Database.Migrate();
 }*/
 
-app.UseCors("AllowReact");
+app.UseCors("AllowVercel");
 app.MapControllers();
 app.Run();
 
