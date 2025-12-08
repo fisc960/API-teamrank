@@ -107,7 +107,7 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 // -------------------------
-//  FIX CONNECTION STRING
+// READ DATABASE_URL
 // -------------------------
 var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
@@ -116,15 +116,21 @@ if (string.IsNullOrWhiteSpace(rawUrl))
     throw new Exception("DATABASE_URL is missing.");
 }
 
-var databaseUri = new Uri(rawUrl);
-var userInfo = databaseUri.UserInfo.Split(':');
+var uri = new Uri(rawUrl);
+var userInfo = uri.UserInfo.Split(':');
+
+string host = uri.Host;               // Aiven host
+int portDb = uri.Port;                // 12782
+string username = userInfo[0];
+string password = userInfo[1];
+string database = uri.AbsolutePath.TrimStart('/');
 
 var connectionString =
-    $"Host={databaseUri.Host};" +
-    $"Port={databaseUri.Port};" +
-    $"Username={userInfo[0]};" +
-    $"Password={userInfo[1]};" +
-    $"Database={databaseUri.AbsolutePath.TrimStart('/')};" +
+    $"Host={host};" +
+    $"Port={portDb};" +
+    $"Username={username};" +
+    $"Password={password};" +
+    $"Database={database};" +
     $"SSL Mode=Require;" +
     $"Trust Server Certificate=True;";
 
@@ -132,7 +138,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 // -------------------------
-//  CORS
+// CORS
 // -------------------------
 builder.Services.AddCors(options =>
 {
@@ -154,21 +160,16 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// -------------------------
-// APPLY MIGRATIONS HERE !!!
-// -------------------------
+// Apply migrations
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 }
 
-// -------------------------
 app.UseCors("AllowReact");
 app.MapControllers();
-
 app.Run();
-
 
 /*
 
