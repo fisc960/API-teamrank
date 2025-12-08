@@ -1,99 +1,75 @@
 ﻿
-/*using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ----------------------------------
-// 1. LOAD CONNECTION STRING
-// ----------------------------------
-// Railway always provides DATABASE_URL for PostgreSQL
-var railwayUrl =
-    Environment.GetEnvironmentVariable("DATABASE_URL") ??
-    Environment.GetEnvironmentVariable("POSTGRES_URL") ??
-    Environment.GetEnvironmentVariable("POSTGRES_URL_NON_POOLING");
-
-// Local SQL Server connection
-var localConn = builder.Configuration.GetConnectionString("ApplicationDbcontext");
-
-var isPostgres = Environment.GetEnvironmentVariable("DB_PROVIDER")?.ToLower() == "postgres";
-var connectionString = isPostgres ? railwayUrl : localConn;
-
-Console.WriteLine("\n--- DATABASE CONNECTION ---");
-Console.WriteLine("Loaded connection string: " + connectionString);
-Console.WriteLine("----------------------------\n");
-
-// ----------------------------------
-// 2. CHOOSE PROVIDER
-// ----------------------------------
-if (isPostgres)
+// Force Railway port
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.ConfigureKestrel(options =>
 {
-    Console.WriteLine("🟦 Using POSTGRESQL provider (Railway)");
+    options.ListenAnyIP(int.Parse(port));
+});
 
-    // Parse the PostgreSQL URI into components
-    var uri = new Uri(connectionString);
-    var db = uri.AbsolutePath.Trim('/');
-    var userInfo = uri.UserInfo.Split(':');
+// -------------------------
+//  PARSE DATABASE_URL
+// -------------------------
+var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+if (string.IsNullOrWhiteSpace(rawUrl))
+    throw new Exception("DATABASE_URL is missing.");
 
-    // Build proper Npgsql connection string
-    var builderPg = new Npgsql.NpgsqlConnectionStringBuilder
-    {
-        Host = uri.Host,
-        Port = uri.Port,
-        Database = db,
-        Username = userInfo[0],
-        Password = userInfo[1],
-        SslMode = Npgsql.SslMode.Require,
-        TrustServerCertificate = true
-    };
+Console.WriteLine($"Raw DATABASE_URL: {rawUrl}");
 
-    Console.WriteLine($"Connecting to: {uri.Host}:{uri.Port}/{db}");
+// Parse URI properly
+var uri = new Uri(rawUrl);
+var userInfo = uri.UserInfo.Split(':');
 
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(builderPg.ToString()));
-}
-else
-{
-    Console.WriteLine("🟥 Using SQL SERVER provider (Localhost)");
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlServer(connectionString));
-}
+// Build connection string with HOSTNAME (not IP)
+var finalConnectionString =
+    $"Host={uri.Host};" +  // This will be the hostname, not IP
+    $"Port={uri.Port};" +
+    $"Username={userInfo[0]};" +
+    $"Password={userInfo[1]};" +
+    $"Database={uri.AbsolutePath.TrimStart('/')};" +
+    $"SslMode=Require;" +
+    $"Trust Server Certificate=true;";
 
-// ----------------------------------
-// 3. CORS
-// ----------------------------------
+Console.WriteLine($"Final connection string: Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]}");
+
+// -------------------------
+//  DATABASE
+// -------------------------
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(finalConnectionString));
+
+// -------------------------
+//  CORS
+// -------------------------
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowReact", policy =>
+    {
         policy.WithOrigins(
             "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
             "https://team-rank-banking.vercel.app",
-            "http://localhost:3000",
             "http://localhost:5173",
-            "http://localhost:5174",
-            "http://localhost:5175",
-            "http://localhost:5176"
+            "http://localhost:3000"
         )
-        .AllowAnyMethod()
         .AllowAnyHeader()
-        .AllowCredentials());
+        .AllowAnyMethod()
+        .AllowCredentials();
+    });
 });
 
 builder.Services.AddControllers();
-builder.Services.AddSwaggerGen();
 builder.Services.AddEndpointsApiExplorer();
-
-// ----------------------------------
-// 4. PORT BINDING
-// ----------------------------------
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// ----------------------------------
-// 5. APPLY MIGRATIONS
-// ----------------------------------
+// -------------------------
+//  APPLY MIGRATIONS
+// -------------------------
 Console.WriteLine("Applying database migrations...");
 try
 {
@@ -104,29 +80,17 @@ try
 }
 catch (Exception ex)
 {
-    Console.WriteLine("❌ Migration failed: " + ex.Message);
-    Console.WriteLine(ex.StackTrace);
+    Console.WriteLine($"❌ Migration failed: {ex.Message}");
     throw;
 }
 
-// ----------------------------------
-// 6. MIDDLEWARE
-// ----------------------------------
-app.UseCors("AllowAll");
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseAuthorization();
+app.UseCors("AllowReact");
 app.MapControllers();
-app.MapGet("/", () => "Gemach API is running.");
 
-await app.RunAsync();*/
+Console.WriteLine($"API starting on port {port}...");
+app.Run();
 
-
+/*
 using GemachApp.Data;
 using Microsoft.EntityFrameworkCore;
 
