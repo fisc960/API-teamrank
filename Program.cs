@@ -167,7 +167,7 @@ var app = builder.Build();
     db.Database.Migrate();
 }*/
 
-app.UseCors("AllowReac");
+app.UseCors("AllowReact");
 app.MapControllers();
 app.Run();
 
