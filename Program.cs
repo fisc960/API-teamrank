@@ -129,7 +129,6 @@ await app.RunAsync();*/
 
 using GemachApp.Data;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -141,32 +140,30 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 // -------------------------
-//  FIX CONNECTION STRING
+//  PARSE DATABASE_URL
 // -------------------------
 var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
 if (string.IsNullOrWhiteSpace(rawUrl))
-{
     throw new Exception("DATABASE_URL is missing.");
-}
 
-// Example rawUrl:
-// postgres://user:pass@host:port/dbname
+var uri = new Uri(rawUrl.Split('?')[0]);  // <-- REMOVE query string
+var userInfo = uri.UserInfo.Split(':');
 
-var databaseUri = new Uri(rawUrl);
-var userInfo = databaseUri.UserInfo.Split(':');
-
-var connectionString =
-    $"Host={databaseUri.Host};" +
-    $"Port={databaseUri.Port};" +
+var finalConnectionString =
+    $"Host={uri.Host};" +
+    $"Port={uri.Port};" +
     $"Username={userInfo[0]};" +
     $"Password={userInfo[1]};" +
-    $"Database={databaseUri.AbsolutePath.TrimStart('/')};" +
+    $"Database={uri.AbsolutePath.TrimStart('/')};" +
     $"SSL Mode=Require;" +
     $"Trust Server Certificate=True;";
 
+// -------------------------
+//  DATABASE
+// -------------------------
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(finalConnectionString));
 
 // -------------------------
 //  CORS
