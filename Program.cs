@@ -1,4 +1,6 @@
 ﻿
+
+/*
 using GemachApp.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -88,9 +90,10 @@ app.UseCors("AllowReact");
 app.MapControllers();
 
 Console.WriteLine($"API starting on port {port}...");
-app.Run();
+app.Run();*/
 
-/*
+
+
 using GemachApp.Data;
 using Microsoft.EntityFrameworkCore;
 
