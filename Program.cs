@@ -167,6 +167,13 @@ var app = builder.Build();
     db.Database.Migrate();
 }*/
 
+app.Use(async (context, next) =>
+{
+    Console.WriteLine($"Incoming request: {context.Request.Method} {context.Request.Path}");
+    Console.WriteLine($"Origin: {context.Request.Headers["Origin"]}");
+    await next();
+});
+
 app.UseCors("AllowReact");
 app.MapControllers();
 app.Run();
