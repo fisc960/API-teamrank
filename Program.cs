@@ -96,10 +96,11 @@ app.Run();*/
 
 using GemachApp.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Force Railway port
+// Railway forced PORT
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -107,33 +108,30 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 // -------------------------
-//  PARSE DATABASE_URL
+//  SAFE PARSING FOR AIVEN
 // -------------------------
-var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? throw new Exception("DATABASE_URL missing");
 
-if (string.IsNullOrWhiteSpace(rawUrl))
-    throw new Exception("DATABASE_URL is missing.");
+var noQuery = rawUrl.Split('?')[0];
+var uri = new Uri(noQuery);
+var user = uri.UserInfo.Split(':')[0];
+var pass = uri.UserInfo.Split(':')[1];
 
-var uri = new Uri(rawUrl.Split('?')[0]);  // <-- REMOVE query string
-var userInfo = uri.UserInfo.Split(':');
+var csb = new NpgsqlConnectionStringBuilder
+{
+    Host = uri.Host,
+    Port = uri.Port,
+    Username = user,
+    Password = pass,
+    Database = uri.AbsolutePath.TrimStart('/'),
+    SslMode = SslMode.Require,
+    TrustServerCertificate = true
+};
 
-var finalConnectionString =
-    $"Host={uri.Host};" +
-    $"Port={uri.Port};" +
-    $"Username={userInfo[0]};" +
-    $"Password={userInfo[1]};" +
-    $"Database={uri.AbsolutePath.TrimStart('/')};" +
-    $"SSL Mode=Require;" +
-    $"Trust Server Certificate=True;";
+builder.Services.AddDbContext<AppDbContext>(opts =>
+    opts.UseNpgsql(csb.ToString()));
 
-// -------------------------
-//  DATABASE
-// -------------------------
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(finalConnectionString));
-
-// -------------------------
-//  CORS
 // -------------------------
 builder.Services.AddCors(options =>
 {
@@ -143,6 +141,9 @@ builder.Services.AddCors(options =>
             "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
             "https://team-rank-banking.vercel.app",
             "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5175",
+            "http://localhost:5176",
             "http://localhost:3000"
         )
         .AllowAnyHeader()
