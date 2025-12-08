@@ -96,11 +96,10 @@ app.Run();*/
 
 using GemachApp.Data;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Railway forced PORT
+// Force Railway port
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -108,30 +107,32 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 // -------------------------
-//  SAFE PARSING FOR AIVEN
+//  FIX CONNECTION STRING
 // -------------------------
-var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
-    ?? throw new Exception("DATABASE_URL missing");
+var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
-var noQuery = rawUrl.Split('?')[0];
-var uri = new Uri(noQuery);
-var user = uri.UserInfo.Split(':')[0];
-var pass = uri.UserInfo.Split(':')[1];
-
-var csb = new NpgsqlConnectionStringBuilder
+if (string.IsNullOrWhiteSpace(rawUrl))
 {
-    Host = uri.Host,
-    Port = uri.Port,
-    Username = user,
-    Password = pass,
-    Database = uri.AbsolutePath.TrimStart('/'),
-    SslMode = SslMode.Require,
-    TrustServerCertificate = true
-};
+    throw new Exception("DATABASE_URL is missing.");
+}
 
-builder.Services.AddDbContext<AppDbContext>(opts =>
-    opts.UseNpgsql(csb.ToString()));
+var databaseUri = new Uri(rawUrl);
+var userInfo = databaseUri.UserInfo.Split(':');
 
+var connectionString =
+    $"Host={databaseUri.Host};" +
+    $"Port={databaseUri.Port};" +
+    $"Username={userInfo[0]};" +
+    $"Password={userInfo[1]};" +
+    $"Database={databaseUri.AbsolutePath.TrimStart('/')};" +
+    $"SSL Mode=Require;" +
+    $"Trust Server Certificate=True;";
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+// -------------------------
+//  CORS
 // -------------------------
 builder.Services.AddCors(options =>
 {
@@ -141,9 +142,6 @@ builder.Services.AddCors(options =>
             "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
             "https://team-rank-banking.vercel.app",
             "http://localhost:5173",
-            "http://localhost:5174",
-            "http://localhost:5175",
-            "http://localhost:5176",
             "http://localhost:3000"
         )
         .AllowAnyHeader()
@@ -156,10 +154,21 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
+// -------------------------
+// APPLY MIGRATIONS HERE !!!
+// -------------------------
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
+// -------------------------
 app.UseCors("AllowReact");
 app.MapControllers();
 
 app.Run();
+
 
 /*
 
