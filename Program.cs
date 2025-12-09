@@ -2,8 +2,6 @@
 
 using GemachApp.Data;
 using Microsoft.EntityFrameworkCore;
-using GemachApp.Data;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,23 +23,6 @@ if (string.IsNullOrWhiteSpace(rawUrl))
     throw new Exception("DATABASE_URL is missing.");
 }
 
-Console.WriteLine($"Raw connection string: {rawUrl.Replace(rawUrl.Split('@')[0].Split(':')[2], "****")}");
-
-
-/*var uri = new Uri(rawUrl);
-var userInfo = uri.UserInfo.Split(':');
-string host = uri.Host;
-int portDb = uri.Port;
-string username = userInfo[0];
-string password = userInfo[1];
-string database = uri.AbsolutePath.TrimStart('/');
-
-// Remove query parameters from database name if present
-if (database.Contains('?'))
-{
-    database = database.Split('?')[0];
-}*/
-
 // Parse the PostgreSQL URI into connection string format
 var databaseUri = new Uri(rawUrl);
 var userInfo = databaseUri.UserInfo.Split(':');
@@ -52,13 +33,26 @@ var connectionString = $"Host={databaseUri.Host};" +
                       $"Password={userInfo[1]};" +
                       $"Database={databaseUri.AbsolutePath.TrimStart('/')};" +
                       $"SSL Mode=Require;" +
-                      $"Trust Server Certificate=true;";
+                      $"Trust Server Certificate=true;" +
+                      $"Timeout=30;" +
+                      $"Command Timeout=30;" +
+                      $"Keepalive=30;" +
+                      $"MaxPoolSize=20;" +
+                      $"MinPoolSize=1;";
 
 Console.WriteLine($"Connecting to: {databaseUri.Host}:{databaseUri.Port}");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
-    //options.UseNpgsql(rawUrl));
+{
+    options.UseNpgsql(connectionString, npgsqlOptions =>
+    {
+        npgsqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorCodesToAdd: null);
+        npgsqlOptions.CommandTimeout(30);
+    });
+});
 
 // -------------------------
 // CORS
@@ -83,23 +77,25 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Test database connection at startup
+// Test database connection and run migrations
 try
 {
     using (var scope = app.Services.CreateScope())
     {
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Console.WriteLine("Testing database connection...");
-        await dbContext.Database.CanConnectAsync();
+        await db.Database.CanConnectAsync();
         Console.WriteLine("✓ Database connection successful!");
+
+        Console.WriteLine("Running database migrations...");
+        await db.Database.MigrateAsync();
+        Console.WriteLine("✓ Migrations applied successfully!");
     }
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"✗ Database connection FAILED: {ex.Message}");
-    Console.WriteLine($"Inner exception: {ex.InnerException?.Message}");
-    Console.WriteLine($"Stack trace: {ex.StackTrace}");
-    // Don't throw - let the app start so we can see the error in logs
+    Console.WriteLine($"✗ Database error: {ex.Message}");
+    Console.WriteLine($"Inner: {ex.InnerException?.Message}");
 }
 
 // Global error handler
@@ -112,7 +108,6 @@ app.Use(async (context, next) =>
     catch (Exception ex)
     {
         Console.WriteLine($"Request error: {ex.Message}");
-        Console.WriteLine($"Stack: {ex.StackTrace}");
 
         context.Response.StatusCode = 500;
         context.Response.ContentType = "application/json";
