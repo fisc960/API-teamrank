@@ -20,6 +20,12 @@ namespace GemachApp.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // Force lowercase table names for PostgreSQL
+            foreach (var entity in modelBuilder.Model.GetEntityTypes())
+            {
+                entity.SetTableName(entity.GetTableName().ToLower());
+            }
+
             //  Client
             modelBuilder.Entity<Client>(e =>
             {
