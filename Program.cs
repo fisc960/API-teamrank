@@ -28,8 +28,7 @@ if (string.IsNullOrWhiteSpace(rawUrl))
 Console.WriteLine($"Raw connection string: {rawUrl.Replace(rawUrl.Split('@')[0].Split(':')[2], "****")}");
 
 
-
-var uri = new Uri(rawUrl);
+/*var uri = new Uri(rawUrl);
 var userInfo = uri.UserInfo.Split(':');
 string host = uri.Host;
 int portDb = uri.Port;
@@ -41,22 +40,25 @@ string database = uri.AbsolutePath.TrimStart('/');
 if (database.Contains('?'))
 {
     database = database.Split('?')[0];
-}
+}*/
 
-var connectionString =
-    $"Host={host};" +
-    $"Port={portDb};" +
-    $"Username={username};" +
-    $"Password={password};" +
-    $"Database={database};" +
-    $"SSL Mode=Require;" +
-    $"Trust Server Certificate=True;";
+// Parse the PostgreSQL URI into connection string format
+var databaseUri = new Uri(rawUrl);
+var userInfo = databaseUri.UserInfo.Split(':');
 
-Console.WriteLine($"Connecting to database: {database} at {host}:{portDb}");
+var connectionString = $"Host={databaseUri.Host};" +
+                      $"Port={databaseUri.Port};" +
+                      $"Username={userInfo[0]};" +
+                      $"Password={userInfo[1]};" +
+                      $"Database={databaseUri.AbsolutePath.TrimStart('/')};" +
+                      $"SSL Mode=Require;" +
+                      $"Trust Server Certificate=true;";
+
+Console.WriteLine($"Connecting to: {databaseUri.Host}:{databaseUri.Port}");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    //options.UseNpgsql(connectionString));
-    options.UseNpgsql(rawUrl));
+    options.UseNpgsql(connectionString));
+    //options.UseNpgsql(rawUrl));
 
 // -------------------------
 // CORS
