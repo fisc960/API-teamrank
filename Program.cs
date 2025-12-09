@@ -1,99 +1,7 @@
 ﻿
 
-/*
 using GemachApp.Data;
 using Microsoft.EntityFrameworkCore;
-
-var builder = WebApplication.CreateBuilder(args);
-
-// Force Railway port
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(int.Parse(port));
-});
-
-// -------------------------
-//  PARSE DATABASE_URL
-// -------------------------
-var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-if (string.IsNullOrWhiteSpace(rawUrl))
-    throw new Exception("DATABASE_URL is missing.");
-
-Console.WriteLine($"Raw DATABASE_URL: {rawUrl}");
-
-// Parse URI properly
-var uri = new Uri(rawUrl);
-var userInfo = uri.UserInfo.Split(':');
-
-// Build connection string with HOSTNAME (not IP)
-var finalConnectionString =
-    $"Host={uri.Host};" +  // This will be the hostname, not IP
-    $"Port={uri.Port};" +
-    $"Username={userInfo[0]};" +
-    $"Password={userInfo[1]};" +
-    $"Database={uri.AbsolutePath.TrimStart('/')};" +
-    $"SslMode=Require;" +
-    $"Trust Server Certificate=true;";
-
-Console.WriteLine($"Final connection string: Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]}");
-
-// -------------------------
-//  DATABASE
-// -------------------------
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(finalConnectionString));
-
-// -------------------------
-//  CORS
-// -------------------------
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowReact", policy =>
-    {
-        policy.WithOrigins(
-            "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
-            "https://team-rank-banking.vercel.app",
-            "http://localhost:5173",
-            "http://localhost:3000"
-        )
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials();
-    });
-});
-
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-var app = builder.Build();
-
-// -------------------------
-//  APPLY MIGRATIONS
-// -------------------------
-Console.WriteLine("Applying database migrations...");
-try
-{
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
-    Console.WriteLine("✅ Migrations applied successfully!");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"❌ Migration failed: {ex.Message}");
-    throw;
-}
-
-app.UseCors("AllowReact");
-app.MapControllers();
-
-Console.WriteLine($"API starting on port {port}...");
-app.Run();*/
-
-
-
 using GemachApp.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -110,6 +18,7 @@ builder.WebHost.ConfigureKestrel(options =>
 // READ DATABASE_URL
 // -------------------------
 var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+Console.WriteLine($"DATABASE_URL present: {!string.IsNullOrWhiteSpace(rawUrl)}");
 
 if (string.IsNullOrWhiteSpace(rawUrl))
 {
@@ -118,12 +27,17 @@ if (string.IsNullOrWhiteSpace(rawUrl))
 
 var uri = new Uri(rawUrl);
 var userInfo = uri.UserInfo.Split(':');
-
-string host = uri.Host;               // Aiven host
-int portDb = uri.Port;                // 12782
+string host = uri.Host;
+int portDb = uri.Port;
 string username = userInfo[0];
 string password = userInfo[1];
 string database = uri.AbsolutePath.TrimStart('/');
+
+// Remove query parameters from database name if present
+if (database.Contains('?'))
+{
+    database = database.Split('?')[0];
+}
 
 var connectionString =
     $"Host={host};" +
@@ -133,6 +47,8 @@ var connectionString =
     $"Database={database};" +
     $"SSL Mode=Require;" +
     $"Trust Server Certificate=True;";
+
+Console.WriteLine($"Connecting to database: {database} at {host}:{portDb}");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -160,13 +76,55 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Apply migrations
-/*using (var scope = app.Services.CreateScope())
+// Test database connection at startup
+try
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-}*/
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Console.WriteLine("Testing database connection...");
+        await dbContext.Database.CanConnectAsync();
+        Console.WriteLine("✓ Database connection successful!");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"✗ Database connection FAILED: {ex.Message}");
+    Console.WriteLine($"Inner exception: {ex.InnerException?.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    // Don't throw - let the app start so we can see the error in logs
+}
 
+// Global error handler
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Request error: {ex.Message}");
+        Console.WriteLine($"Stack: {ex.StackTrace}");
+
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            error = ex.Message,
+            type = ex.GetType().Name
+        });
+    }
+});
+
+app.UseCors("AllowReact");
+app.MapControllers();
+
+Console.WriteLine($"Starting server on port {port}...");
+app.Run();
+
+
+/*
 app.Use(async (context, next) =>
 {
     Console.WriteLine($"Incoming request: {context.Request.Method} {context.Request.Path}");
