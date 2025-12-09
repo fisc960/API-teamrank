@@ -5,58 +5,86 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ---------------------------------------------------------
 // Force Railway port
+// ---------------------------------------------------------
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(int.Parse(port));
 });
 
-// -------------------------
-// READ DATABASE_URL
-// -------------------------
+// ---------------------------------------------------------
+// Load DATABASE_URL (Railway)
+// ---------------------------------------------------------
 var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-Console.WriteLine($"DATABASE_URL present: {!string.IsNullOrWhiteSpace(rawUrl)}");
 
 if (string.IsNullOrWhiteSpace(rawUrl))
+    throw new Exception("Missing DATABASE_URL environment variable.");
+
+// Fix for PostgreSQL URI scheme if Railway uses "postgresql://"
+rawUrl = rawUrl.Replace("postgresql://", "postgres://");
+
+// ---------------------------------------------------------
+// Convert postgres:// URI → Npgsql connection string
+// ---------------------------------------------------------
+Uri uri;
+try
 {
-    throw new Exception("DATABASE_URL is missing.");
+    uri = new Uri(rawUrl);
+}
+catch
+{
+    throw new Exception($"Invalid DATABASE_URL format: {rawUrl}");
 }
 
-// Parse the PostgreSQL URI into connection string format
-var databaseUri = new Uri(rawUrl);
-var userInfo = databaseUri.UserInfo.Split(':');
+var userInfo = uri.UserInfo.Split(':');
+if (userInfo.Length != 2)
+    throw new Exception("DATABASE_URL missing username or password.");
 
-var connectionString = $"Host={databaseUri.Host};" +
-                      $"Port={databaseUri.Port};" +
-                      $"Username={userInfo[0]};" +
-                      $"Password={userInfo[1]};" +
-                      $"Database={databaseUri.AbsolutePath.TrimStart('/')};" +
-                      $"SSL Mode=Require;" +
-                      $"Trust Server Certificate=true;" +
-                      $"Timeout=30;" +
-                      $"Command Timeout=30;" +
-                      $"Keepalive=30;" +
-                      $"MaxPoolSize=20;" +
-                      $"MinPoolSize=1;";
+var username = userInfo[0];
+var password = userInfo[1];
+var host = uri.Host;
+var portNum = uri.Port;
+var dbName = uri.AbsolutePath.TrimStart('/');
 
-Console.WriteLine($"Connecting to: {databaseUri.Host}:{databaseUri.Port}");
+var connectionString =
+    $"Host={host};" +
+    $"Port={portNum};" +
+    $"Username={username};" +
+    $"Password={password};" +
+    $"Database={dbName};" +
+    $"SSL Mode=Require;" +
+    $"Trust Server Certificate=true;" +
+    $"Timeout=30;" +
+    $"Command Timeout=30;" +
+    $"Keepalive=30;" +
+    $"Pooling=true;" +
+    $"MaxPoolSize=50;";
 
+// Debug output
+Console.WriteLine($"Connecting → {host}:{portNum}");
+Console.WriteLine("ConnectionString generated successfully.");
+
+// ---------------------------------------------------------
+// Register DbContext
+// ---------------------------------------------------------
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    options.UseNpgsql(connectionString, npgsqlOptions =>
+    options.UseNpgsql(connectionString, npgsql =>
     {
-        npgsqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 3,
-            maxRetryDelay: TimeSpan.FromSeconds(5),
+        npgsql.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
             errorCodesToAdd: null);
-        npgsqlOptions.CommandTimeout(30);
+
+        npgsql.CommandTimeout(30);
     });
 });
 
-// -------------------------
+// ---------------------------------------------------------
 // CORS
-// -------------------------
+// ---------------------------------------------------------
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReact", policy =>
@@ -77,32 +105,27 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Drop and recreate database with correct table names
+// ---------------------------------------------------------
+// Test DB connection on startup (no dropping tables!)
+// ---------------------------------------------------------
 try
 {
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        Console.WriteLine("Testing database connection...");
-        await db.Database.CanConnectAsync();
-        Console.WriteLine("✓ Database connection successful!");
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        Console.WriteLine("Dropping existing database...");
-        await db.Database.EnsureDeletedAsync();
-        Console.WriteLine("✓ Database dropped!");
-
-        Console.WriteLine("Creating database with correct table names...");
-        await db.Database.EnsureCreatedAsync();
-        Console.WriteLine("✓ Database created successfully!");
-    }
+    Console.WriteLine("Testing database connection...");
+    await db.Database.CanConnectAsync();
+    Console.WriteLine("✓ Connected to PostgreSQL successfully.");
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"✗ Database error: {ex.Message}");
-    Console.WriteLine($"Inner: {ex.InnerException?.Message}");
+    Console.WriteLine("✗ Database connection FAILED:");
+    Console.WriteLine(ex.Message);
 }
 
-// Global error handler
+// ---------------------------------------------------------
+// Global Exception Handler
+// ---------------------------------------------------------
 app.Use(async (context, next) =>
 {
     try
@@ -111,10 +134,11 @@ app.Use(async (context, next) =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Request error: {ex.Message}");
+        Console.WriteLine($"[ERROR] {ex.Message}");
 
         context.Response.StatusCode = 500;
         context.Response.ContentType = "application/json";
+
         await context.Response.WriteAsJsonAsync(new
         {
             error = ex.Message,
@@ -123,10 +147,11 @@ app.Use(async (context, next) =>
     }
 });
 
+// ---------------------------------------------------------
 app.UseCors("AllowReact");
 app.MapControllers();
 
-Console.WriteLine($"Starting server on port {port}...");
+Console.WriteLine($"Server running on port {port}...");
 app.Run();
 
 /*
