@@ -25,6 +25,10 @@ if (string.IsNullOrWhiteSpace(rawUrl))
     throw new Exception("DATABASE_URL is missing.");
 }
 
+Console.WriteLine($"Raw connection string: {rawUrl.Replace(rawUrl.Split('@')[0].Split(':')[2], "****")}");
+
+
+
 var uri = new Uri(rawUrl);
 var userInfo = uri.UserInfo.Split(':');
 string host = uri.Host;
@@ -51,7 +55,8 @@ var connectionString =
 Console.WriteLine($"Connecting to database: {database} at {host}:{portDb}");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    //options.UseNpgsql(connectionString));
+    options.UseNpgsql(rawUrl));
 
 // -------------------------
 // CORS
