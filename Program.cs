@@ -77,7 +77,7 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Test database connection and run migrations
+// Drop and recreate database with correct table names
 try
 {
     using (var scope = app.Services.CreateScope())
@@ -87,9 +87,13 @@ try
         await db.Database.CanConnectAsync();
         Console.WriteLine("✓ Database connection successful!");
 
-        Console.WriteLine("Running database migrations...");
-        await db.Database.MigrateAsync();
-        Console.WriteLine("✓ Migrations applied successfully!");
+        Console.WriteLine("Dropping existing database...");
+        await db.Database.EnsureDeletedAsync();
+        Console.WriteLine("✓ Database dropped!");
+
+        Console.WriteLine("Creating database with correct table names...");
+        await db.Database.EnsureCreatedAsync();
+        Console.WriteLine("✓ Database created successfully!");
     }
 }
 catch (Exception ex)
@@ -124,7 +128,6 @@ app.MapControllers();
 
 Console.WriteLine($"Starting server on port {port}...");
 app.Run();
-
 
 /*
 app.Use(async (context, next) =>
