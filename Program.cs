@@ -1,120 +1,143 @@
-﻿
-
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using GemachApp.Data;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --------------------------------------------
-// FORCE RAILWAY PORT
-// --------------------------------------------
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+// --------------------
+// PORT (LOCAL + RAILWAY)
+// --------------------
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5234";
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(int.Parse(port));
 });
+Console.WriteLine($"Backend listening on port {port}");
 
-// --------------------------------------------
-// READ DATABASE_URL FROM ENVIRONMENT
-// --------------------------------------------
-var rawUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+// Load local config if exists
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true);
 
-if (string.IsNullOrWhiteSpace(rawUrl))
+// --------------------
+// DB PROVIDER
+// --------------------
+var provider = builder.Configuration["DB_PROVIDER"]?.ToLower() ?? "sqlserver";
+Console.WriteLine($"DB_PROVIDER: {provider}");
+
+string connectionString;
+
+// --------------------
+// CONNECTION STRING
+// --------------------
+if (provider == "postgres")
 {
-    throw new Exception("DATABASE_URL is missing. Railway did not inject it.");
+    var dbUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    if (string.IsNullOrEmpty(dbUrl))
+        throw new Exception("DATABASE_URL is required");
+
+    connectionString = ConvertPostgresUrlToConnectionString(dbUrl);
+}
+else
+{
+    connectionString =
+        builder.Configuration.GetConnectionString("ApplicationDbcontext")
+        ?? throw new Exception("SQL Server connection string missing");
 }
 
-// --------------------------------------------
-// NORMALIZE URL • Railway sometimes returns:
-// postgresql://user:pass@host:port/db
-// postgres://user:pass@host:port/db
-// --------------------------------------------
-rawUrl = rawUrl.Replace("postgresql://", "postgres://");
-
-// Now parse safely
-Uri uri;
-try
+// --------------------
+// REGISTER DB
+// --------------------
+if (provider == "postgres")
 {
-    uri = new Uri(rawUrl);
+    builder.Services.AddDbContext<AppDbContext>(o =>
+        o.UseNpgsql(connectionString));
 }
-catch (Exception ex)
+else
 {
-    throw new Exception($"Invalid DATABASE_URL format: {rawUrl}", ex);
+    builder.Services.AddDbContext<AppDbContext>(o =>
+        o.UseSqlServer(connectionString));
 }
 
-var userPass = uri.UserInfo.Split(':', 2); // allow ":" inside password
-var username = userPass[0];
-var password = userPass.Length > 1 ? userPass[1] : "";
-
-var database = uri.AbsolutePath.TrimStart('/');
-var host = uri.Host;
-var dbPort = uri.Port;
-
-// --------------------------------------------
-// BUILD SAFE NPGSQL CONNECTION STRING
-// --------------------------------------------
-var connectionString =
-    $"Host={host};" +
-    $"Port={dbPort};" +
-    $"Username={username};" +
-    $"Password={password};" +
-    $"Database={database};" +
-    $"SSL Mode=Require;" +
-    $"Trust Server Certificate=true;" +
-    $"Timeout=30;" +
-    $"Command Timeout=30;" +
-    $"Keepalive=30;" +
-    $"MaxPoolSize=20;" +
-    $"MinPoolSize=1;";
-
-Console.WriteLine("Using PostgreSQL:");
-Console.WriteLine($" Host={host}");
-Console.WriteLine($" Port={dbPort}");
-Console.WriteLine($" DB={database}");
-
-// --------------------------------------------
-// ENTITY FRAMEWORK DB CONTEXT
-// --------------------------------------------
-builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    options.UseNpgsql(connectionString, npgsqlOptions =>
-    {
-        npgsqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(10),
-            errorCodesToAdd: null);
-        npgsqlOptions.CommandTimeout(30);
-    });
-});
-
-// --------------------------------------------
-// CORS SETUP
-// --------------------------------------------
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowReact", policy =>
-    {
-        policy.WithOrigins(
-            "https://team-rank-banking.vercel.app",
-            "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
-            "http://localhost:5173"
-        )
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials();
-    });
-});
-
+// --------------------
+// SERVICES
+// --------------------
 builder.Services.AddControllers();
 
+// Register Email Service
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy
+              .WithOrigins(
+                  "http://localhost:5173",
+                   "http://localhost:5174",
+                    "http://localhost:5175",
+                  "https://team-rank-banking.vercel.app"
+              ).AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// --------------------
+// BUILD APP
+// --------------------
 var app = builder.Build();
 
-app.UseCors("AllowReact");
+// --------------------
+// ADMIN SEED (SAFE)
+// --------------------
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+    if (app.Environment.IsDevelopment())
+    {
+        context.Database.Migrate();
+    }
+
+    if (!context.Admins.Any())
+    {
+        var hasher = new PasswordHasher<Admin>();
+
+        var admin = new Admin
+        {
+            Name = "Admin"
+        };
+
+        admin.PasswordHash = hasher.HashPassword(admin, "Admin123!");
+
+        context.Admins.Add(admin);
+        context.SaveChanges();
+
+        Console.WriteLine("✅ Admin seeded");
+    }
+}
+
+// --------------------
+// MIDDLEWARE
+// --------------------
+app.UseRouting();
+app.UseCors("AllowAll");
+app.UseAuthorization();
 app.MapControllers();
-
-Console.WriteLine($"Server running on port {port}...");
 app.Run();
+
+// --------------------
+// HELPERS
+// --------------------
+
+app.MapGet("/health", () => Results.Ok("OK"));
+
+static string ConvertPostgresUrlToConnectionString(string url)
+{
+    var uri = new Uri(url);
+    var userInfo = uri.UserInfo.Split(':');
+
+    return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.AbsolutePath.TrimStart('/')};SslMode=Require;Trust Server Certificate=true";
+}
+
 
 
 

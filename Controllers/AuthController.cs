@@ -22,7 +22,7 @@ namespace GemachApp.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] AdminLoginRequest request)
         {
-            var admin = await _context.Admins.FirstOrDefaultAsync(a => a.Password == request.Password);
+            var admin = await _context.Admins.FirstOrDefaultAsync(a => a.PasswordHash == request.Password);
 
             if (admin == null || !VerifyPassword(request.Password, admin.PasswordHash))
             {

@@ -25,11 +25,10 @@ node_modules/
 Thumbs.db
 
 # database URLs,
-.env
+#.env
 
-. e n v 
+#. e n v 
 
-.env.local
+#.env.local
  
- appsettings.Development.json
-appsettings.*.json
+ appsettings.Local.json

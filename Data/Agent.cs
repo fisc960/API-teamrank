@@ -8,7 +8,7 @@ namespace GemachApp.Data
     {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        [Required(ErrorMessage = "you must enter Name")]
+        //[Required(ErrorMessage = "you must enter Name")]
         [MaxLength(40, ErrorMessage = "The Name is too long (max 40 chars)")]
         [MinLength(3, ErrorMessage = "The Name is too short  (at least 3 chars)")]
         [RegularExpression(@"^[A-Za-z\s]+$", ErrorMessage = "The name must contain only letters and spaces.")]

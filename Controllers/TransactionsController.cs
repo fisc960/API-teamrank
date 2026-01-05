@@ -289,42 +289,80 @@ namespace GemachApp.Controllers
         [HttpGet("GetTransactionsByClient/{clientId}")]
         public async Task<IActionResult> GetTransactionsByClient(int clientId)
         {
-            // Validate client exists first
-            var clientExists = await _context.Clients.AnyAsync(c => c.ClientId == clientId);
-            if (!clientExists)
+            try
             {
-                return NotFound("Client not found");
-            }
+                Console.WriteLine($"[GetTransactionsByClient] Starting for clientId: {clientId}");
 
-            var transactions = await _context.Transactions
-                .Where(t => t.ClientId == clientId)
-                .OrderBy(t => t.TransDate)
-                .ToListAsync();
-
-            if (!transactions.Any())
-            {
-                return Ok(new { Message = "No transactions found", Transactions = new List<object>() });
-            }
-
-            // Calculate running balance server-side - THIS IS THE KEY FIX
-            decimal runningBalance = 0;
-            var result = transactions.Select(t =>
-            {
-                runningBalance += (t.Added ?? 0) - (t.Subtracted ?? 0);
-                return new
+                // Validate client exists first
+                var clientExists = await _context.Clients.AnyAsync(c => c.ClientId == clientId);
+                if (!clientExists)
                 {
-                    transId = t.TransId,
-                    clientId = t.ClientId,
-                    transDate = t.TransDate,
-                    added = t.Added ?? 0,
-                    subtracted = t.Subtracted ?? 0,
-                    agent = t.Agent ?? "Unknown",
-                    runningBalance = runningBalance // This matches what your frontend expects
-                };
-            }).ToList();
+                    Console.WriteLine($"[GetTransactionsByClient] Client {clientId} not found");
+                    return NotFound(new { message = "Client not found" });
+                }
 
-            return Ok(result);
+                Console.WriteLine($"[GetTransactionsByClient] Client {clientId} exists, fetching transactions...");
+
+                var transactions = await _context.Transactions
+                    .Where(t => t.ClientId == clientId)
+                    .OrderBy(t => t.TransDate)
+                    .ThenBy(t => t.TransId)
+                    .ToListAsync();
+
+                Console.WriteLine($"[GetTransactionsByClient] Found {transactions.Count} transactions");
+
+                if (!transactions.Any())
+                {
+                    Console.WriteLine($"[GetTransactionsByClient] No transactions found for client {clientId}");
+                    return Ok(new List<object>());
+                }
+
+                // Calculate running balance server-side
+                decimal runningBalance = 0;
+                var result = new List<object>();
+
+                foreach (var t in transactions)
+                {
+                    runningBalance += (t.Added ?? 0) - (t.Subtracted ?? 0);
+
+                    result.Add(new
+                    {
+                        transId = t.TransId,
+                        clientId = t.ClientId,
+                        transDate = t.TransDate,
+                        added = t.Added ?? 0,
+                        subtracted = t.Subtracted ?? 0,
+                        agent = t.Agent ?? "Unknown",
+                        runningBalance = runningBalance
+                    });
+                }
+
+                Console.WriteLine($"[GetTransactionsByClient] Successfully processed {result.Count} transactions");
+                Console.WriteLine($"[GetTransactionsByClient] Final running balance: {runningBalance}");
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[GetTransactionsByClient] ERROR for clientId {clientId}:");
+                Console.Error.WriteLine($"Message: {ex.Message}");
+                Console.Error.WriteLine($"Stack Trace: {ex.StackTrace}");
+
+                if (ex.InnerException != null)
+                {
+                    Console.Error.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                    Console.Error.WriteLine($"Inner Stack Trace: {ex.InnerException.StackTrace}");
+                }
+
+                return StatusCode(500, new
+                {
+                    message = "An error occurred while fetching transactions",
+                    error = ex.Message,
+                    innerError = ex.InnerException?.Message
+                });
+            }
         }
+     
 
 
         // POST: api/Transactions/ProcessTransaction
@@ -334,6 +372,11 @@ namespace GemachApp.Controllers
         {
             if (request == null)
                 return BadRequest("Transaction data is missing");
+
+            if (string.IsNullOrWhiteSpace(request.Agent))
+            {
+                request.Agent = User?.Identity?.Name ?? "System";
+            }
 
             // Input validation
             if (request.ClientId <= 0)
@@ -501,142 +544,7 @@ namespace GemachApp.Controllers
                 });
             }
         }
-        /*public async Task<IActionResult> ProcessTransaction([FromBody] TransactionRequest request)
-        {
-            if (request == null)
-                return BadRequest("Transaction data is missing");
-
-            // Input validation
-            if (request.ClientId <= 0)
-                return BadRequest("Valid Client ID is required");
-
-            if (string.IsNullOrWhiteSpace(request.Agent))
-                return BadRequest("Agent name is required");
-
-            // Validate that at least one amount is provided
-            if ((request.Added ?? 0) == 0 && (request.Subtracted ?? 0) == 0)
-                return BadRequest("Either Added or Subtracted amount must be greater than 0");
-
-            // Validate amounts are not negative
-            if ((request.Added ?? 0) < 0 || (request.Subtracted ?? 0) < 0)
-                return BadRequest("Amounts cannot be negative");
-
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                // 1. Validate client exists
-                var client = await _context.Clients.FindAsync(request.ClientId);
-                if (client == null)
-                {
-                    await transaction.RollbackAsync();
-                    return NotFound("Client not found");
-                }
-
-                // Process the amounts
-                decimal addAmount = request.Added ?? 0;
-                decimal subtractAmount = request.Subtracted ?? 0;
-
-                // 2. Get or create account
-                var account = await _context.Accounts
-                    .FirstOrDefaultAsync(a => a.ClientId == request.ClientId);
-
-                if (account == null)
-                {
-                    account = new Account
-                    {
-                        ClientId = request.ClientId,
-                        TotalAmount = 0,
-                        UpdateBalDate = DateTime.UtcNow
-                    };
-                    _context.Accounts.Add(account);
-                    await _context.SaveChangesAsync(); // Save to get the AccountId
-                }
-
-                // 3. Check for negative balance (business rule)
-                decimal currentBalance = account.TotalAmount ?? 0;
-                decimal newBalance = currentBalance + addAmount - subtractAmount;
-                if (newBalance < 0)
-                {
-                    await transaction.RollbackAsync();
-                    return BadRequest($"Transaction would result in negative balance. Current: {currentBalance:C}, Requested: +{addAmount:C} -{subtractAmount:C}");
-                }
-
-                // 4. Calculate cumulative totals for the new transaction
-                var existingTotals = await _context.Transactions
-                    .Where(t => t.ClientId == request.ClientId)
-                    .Select(t => new {
-                        Added = t.Added ?? 0,
-                        Subtracted = t.Subtracted ?? 0
-                    })
-                    .ToListAsync();
-
-                decimal totalAdded = existingTotals.Sum(t => t.Added);
-                decimal totalSubtracted = existingTotals.Sum(t => t.Subtracted);
-
-                // 5. Create new transaction with server-calculated totals
-                var newTransaction = new Transaction
-                {
-                    ClientId = request.ClientId,
-                    Added = addAmount > 0 ? addAmount : null,
-                    Subtracted = subtractAmount > 0 ? subtractAmount : null,
-                    TransDate = DateTime.UtcNow,
-                    Agent = request.Agent.Trim(),
-                    TotalAdded = totalAdded + addAmount,
-                    TotalSubtracted = totalSubtracted + subtractAmount
-                };
-
-                _context.Transactions.Add(newTransaction);
-
-                // 6. Update account balance (server-side calculation)
-                account.TotalAmount = newBalance;
-                account.UpdateBalDate = DateTime.UtcNow;
-                _context.Accounts.Update(account);
-
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                // 7. Send email if requested
-                if (request.SendEmail == true && !string.IsNullOrEmpty(client.Email))
-                {
-                    try
-                    {
-                        await _emailService.SendEmailAsync(
-                            client.Email,
-                            "Transaction Confirmation",
-                            $"Dear {client.ClientFirstName},\n\n" +
-                            $"Your transaction has been processed:\n" +
-                            $"Added: {(addAmount > 0 ? $"${addAmount:F2}" : "N/A")}\n" +
-                            $"Subtracted: {(subtractAmount > 0 ? $"${subtractAmount:F2}" : "N/A")}\n" +
-                            $"New Balance: ${account.TotalAmount:F2}\n\n" +
-                            $"Transaction processed by: {request.Agent}\n" +
-                            $"Date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}"
-                        );
-                    }
-                    catch (Exception emailEx)
-                    {
-                        // Log email error but don't fail the transaction
-                        Console.WriteLine($"Email sending failed: {emailEx.Message}");
-                    }
-                }
-
-                return Ok(new
-                {
-                    message = "Transaction processed successfully",
-                    transactionId = newTransaction.TransId,
-                    updatedBalance = account.TotalAmount,
-                    added = addAmount,
-                    subtracted = subtractAmount,
-                    agent = request.Agent,
-                    transactionDate = newTransaction.TransDate
-                });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                Console.Error.WriteLine($"Error processing transaction: {ex.Message}");
-                return StatusCode(500, "An error occurred while processing the transaction");
-            }
-        }*/
+       
       /* -----> */ [HttpGet("TestConnection")]
         public async Task<IActionResult> TestConnection()
         {

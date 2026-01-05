@@ -20,10 +20,19 @@ namespace GemachApp.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Force lowercase table names for PostgreSQL
-            foreach (var entity in modelBuilder.Model.GetEntityTypes())
+            // lowercase convention table names for PostgreSQL
+            if (Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL")
             {
-                entity.SetTableName(entity.GetTableName().ToLower());
+                foreach (var entity in modelBuilder.Model.GetEntityTypes())
+                {
+                    entity.SetTableName(entity.GetTableName()?.ToLower());
+
+                    foreach (var property in entity.GetProperties())
+                    {
+                        var tableIdentifier = StoreObjectIdentifier.Table(entity.GetTableName(), null);
+                        property.SetColumnName(property.GetColumnName(tableIdentifier)?.ToLower());
+                    }
+                }
             }
 
             //  Client
@@ -103,22 +112,6 @@ namespace GemachApp.Data
                 e.Property(u => u.UpdatedVersion).HasMaxLength(4000);
                 e.Property(u => u.Agent).HasMaxLength(100);
             });
-
-
-            // --- lowercase convention for Postgres ---
-            foreach (var entity in modelBuilder.Model.GetEntityTypes())
-            {
-                // lowercase table name
-                entity.SetTableName(entity.GetTableName()?.ToLower());
-
-                foreach (var property in entity.GetProperties())
-                {
-                     var tableIdentifier = StoreObjectIdentifier.Table(entity.GetTableName(), null);
-        property.SetColumnName(property.GetColumnName(tableIdentifier)?.ToLower());
-                }
-            }
-           
-
         }
     }
 }

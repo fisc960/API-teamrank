@@ -10,11 +10,11 @@ namespace GemachApp.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class Clients1Controller : ControllerBase
+    public class ClientsController : ControllerBase
     {
         private readonly AppDbContext _context;
 
-        public Clients1Controller(AppDbContext context)
+        public ClientsController(AppDbContext context)
         {
             _context = context;
         }
