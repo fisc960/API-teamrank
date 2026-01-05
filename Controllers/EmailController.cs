@@ -34,8 +34,6 @@ namespace GemachApp.Controllers
 
 
                 // Retrieve configuration values
-                /* string smtpServer = _configuration["SmtpSettings:Server"];
-                 int smtpPort = int.Parse(_configuration["SmtpSettings:Port"]);*/
                 string smtpServer = _configuration["SmtpSettings:Server"] ?? "smtp.gmail.com"; // Default fallback
                 if (!int.TryParse(_configuration["SmtpSettings:Port"], out int smtpPort))
                 {

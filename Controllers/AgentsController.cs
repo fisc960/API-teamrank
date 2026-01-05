@@ -137,11 +137,6 @@ namespace GemachApp.Controllers
                 return NotFound(new { message = "Agent not found" });
             }
 
-           /* var existingAgent = await _context.Agents.FindAsync(id);
-            if (existingAgent == null)
-            {
-                return NotFound(new { message = "Agent not found" });
-            }*/
 
             _context.Agents.Remove(agent);
 
@@ -167,31 +162,6 @@ namespace GemachApp.Controllers
                 return BadRequest(new { message = "Failed to delete agent", error = ex.Message });
             }
         }
-
-        /*[HttpPost("test-signup")]
-        public async Task<IActionResult> TestSignup([FromBody] object data)
-        {
-            try
-            {
-                // Log the raw request body
-                var json = System.Text.Json.JsonSerializer.Serialize(data);
-                Console.WriteLine($"Raw data received: {json}");
-                Console.WriteLine($"Data type: {data?.GetType()?.Name}");
-
-                return Ok(new
-                {
-                    message = "Test successful",
-                    receivedRawData = json,
-                    dataType = data?.GetType()?.Name
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in test endpoint: {ex.Message}");
-                return StatusCode(500, new { error = ex.Message });
-            }
-        }*/
-
 
         private void LogAgentFieldChanges(Agent existingAgent, Agent updatedAgent, string agentMakingChange)
         {
