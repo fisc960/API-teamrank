@@ -135,15 +135,25 @@ app.UseAuthorization();
     // --------------------
     // HELPERS
     static string ConvertPostgresUrlToConnectionString(string url)
+{
+    var uri = new Uri(url);
+    var userInfo = uri.UserInfo.Split(':');
+
+    // Check if using transaction pooler (port 6543)
+    bool isTransactionPooler = uri.Port == 6543;
+
+    if (isTransactionPooler)
     {
-        var uri = new Uri(url);
-        var userInfo = uri.UserInfo.Split(':');
+        // Transaction mode - disable prepared statements
+        return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.AbsolutePath.TrimStart('/')};" +
+            $"SslMode=Require;Trust Server Certificate=true;No Prepared Statements=true;Timeout=30;Command Timeout=30";
+    }
+    else
+    {
 
-    return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};" +
-        $"Database={uri.AbsolutePath.TrimStart('/')};SslMode=Require;Trust Server Certificate=true;" +
-        $"IP Address Preference=IPv4First";
+        return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.AbsolutePath.TrimStart('/')};SslMode=Require;Trust Server Certificate=true";
+    }
 }
-
 
 
 
