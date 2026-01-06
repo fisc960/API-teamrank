@@ -80,23 +80,30 @@ using GemachApp.Data;
     // BUILD APP
     var app = builder.Build();
 
-    // --------------------
-    // ADMIN SEED (SAFE)
-    using (var scope = app.Services.CreateScope())
+// --------------------
+// --------------------
+// MIGRATION + SAFE SEED
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    //  ALWAYS apply migrations (production-safe)
+    context.Database.Migrate();
+
+    //  Seed ONLY in Development
+    if (app.Environment.IsDevelopment())
     {
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        if (app.Environment.IsDevelopment())
+        // Make sure table exists before querying
+        if (context.Database.GetPendingMigrations().Any() == false)
         {
-            context.Database.Migrate();
-
             if (!context.Admins.Any())
             {
                 var hasher = new PasswordHasher<Admin>();
 
                 var admin = new Admin
                 {
-                    Name = "Admin"
+                    Name = "Admin",
+         
                 };
 
                 admin.PasswordHash = hasher.HashPassword(admin, "Admin123!");
@@ -104,16 +111,18 @@ using GemachApp.Data;
                 context.Admins.Add(admin);
                 context.SaveChanges();
 
-                Console.WriteLine("✅ Admin seeded");
+                Console.WriteLine("✅ Admin seeded (Development)");
             }
         }
     }
+}
 
-    // --------------------
-    // MIDDLEWARE
-    app.UseRouting();
+// --------------------
+// MIDDLEWARE
+app.UseRouting();
     app.UseCors("AllowAll");
-    app.UseAuthorization();
+app.UseAuthentication();
+app.UseAuthorization();
     app.MapControllers();
     app.MapGet("/health", () => Results.Ok("OK"));
     app.Run();
