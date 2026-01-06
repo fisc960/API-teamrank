@@ -17,10 +17,13 @@ using GemachApp.Data;
     // Load local config if exists
     builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true);
 
-    // --------------------
-    // DB PROVIDER
-    var provider = builder.Configuration["DB_PROVIDER"]?.ToLower() ?? "sqlserver";
-    Console.WriteLine($"DB_PROVIDER: {provider}");
+// --------------------
+// DB PROVIDER - Environment variable takes priority
+var provider = Environment.GetEnvironmentVariable("DB_PROVIDER")?.ToLower()
+    ?? builder.Configuration["DB_PROVIDER"]?.ToLower()
+    ?? "sqlserver";
+//var provider = builder.Configuration["DB_PROVIDER"]?.ToLower() ?? "sqlserver";
+Console.WriteLine($"DB_PROVIDER: {provider}");
 
     string connectionString;
 
@@ -33,13 +36,15 @@ using GemachApp.Data;
             throw new Exception("DATABASE_URL is required");
 
         connectionString = ConvertPostgresUrlToConnectionString(dbUrl);
+    Console.WriteLine("Using PostgreSQL connection");
 }
     else
     {
         connectionString =
             builder.Configuration.GetConnectionString("ApplicationDbcontext")
             ?? throw new Exception("SQL Server connection string missing");
-    }
+    Console.WriteLine("Using SQL Server connection");
+}
 
     // --------------------
     // REGISTER DB
