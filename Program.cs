@@ -139,21 +139,12 @@ app.UseAuthorization();
     var uri = new Uri(url);
     var userInfo = uri.UserInfo.Split(':');
 
-    // Check if using transaction pooler (port 6543)
-    bool isTransactionPooler = uri.Port == 6543;
-
-    if (isTransactionPooler)
-    {
-        // Transaction mode - disable prepared statements
-        return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.AbsolutePath.TrimStart('/')};" +
-            $"SslMode=Require;Trust Server Certificate=true;No Prepared Statements=true;Timeout=30;Command Timeout=30";
+    return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.AbsolutePath.TrimStart('/')};" +
+        $"SslMode=Require;Trust Server Certificate=true;Timeout=30;Command Timeout=30;Pooling=true;Max Auto Prepare=0";
+    return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.AbsolutePath.TrimStart('/')};" +
+        $"SslMode=Require;Trust Server Certificate=true";
     }
-    else
-    {
 
-        return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.AbsolutePath.TrimStart('/')};SslMode=Require;Trust Server Certificate=true";
-    }
-}
 
 
 
