@@ -93,10 +93,17 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
     //  ALWAYS apply migrations (production-safe)
-    context.Database.Migrate();
+    //context.Database.Migrate();
 
-    //  Seed ONLY in Development
-    if (app.Environment.IsDevelopment())
+    try
+    {
+        Console.WriteLine("Attempting database migration...");
+        context.Database.SetCommandTimeout(60); // Increase timeout to 60 seconds
+        context.Database.Migrate();
+        Console.WriteLine("✅ Database migration successful");
+
+        //  Seed ONLY in Development
+        if (app.Environment.IsDevelopment())
     {
         // Make sure table exists before querying
         if (context.Database.GetPendingMigrations().Any() == false)
@@ -121,6 +128,13 @@ using (var scope = app.Services.CreateScope())
         }
     }
 }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Migration failed: {ex.Message}");
+        Console.WriteLine("⚠️  App will start without migrations - please run migrations manually");
+    }
+}
+
 
 // --------------------
 // MIDDLEWARE
