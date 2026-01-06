@@ -139,8 +139,10 @@ app.UseAuthorization();
         var uri = new Uri(url);
         var userInfo = uri.UserInfo.Split(':');
 
-        return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.AbsolutePath.TrimStart('/')};SslMode=Require;Trust Server Certificate=true";
-    }
+    return $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};" +
+        $"Database={uri.AbsolutePath.TrimStart('/')};SslMode=Require;Trust Server Certificate=true;" +
+        $"IP Address Preference=IPv4First";
+}
 
 
 
