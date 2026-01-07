@@ -5,12 +5,9 @@ using GemachApp.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // --------------------
-// PORT (LOCAL + RAILWAY)
+// PORT
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(int.Parse(port));
-});
+builder.WebHost.ConfigureKestrel(o => o.ListenAnyIP(int.Parse(port)));
 Console.WriteLine($"Backend listening on port {port}");
 
 // --------------------
@@ -28,23 +25,18 @@ Console.WriteLine($"DB_PROVIDER: {provider}");
 
 string connectionString;
 
-// --------------------
-// CONNECTION STRING
 if (provider == "postgres")
 {
     var dbUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
         ?? throw new Exception("DATABASE_URL is required");
 
     connectionString = ConvertPostgresUrlToConnectionString(dbUrl);
-    Console.WriteLine("Using PostgreSQL connection");
 }
 else
 {
     connectionString =
         builder.Configuration.GetConnectionString("ApplicationDbcontext")
         ?? throw new Exception("SQL Server connection string missing");
-
-    Console.WriteLine("Using SQL Server connection");
 }
 
 // --------------------
@@ -60,69 +52,51 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // --------------------
 // SERVICES
 builder.Services.AddControllers();
-builder.Services.AddScoped<IEmailService, EmailService>();
-
-builder.Services.AddCors(options =>
+builder.Services.AddCors(p =>
 {
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy
-            .WithOrigins(
-                "http://localhost:5173",
-                "http://localhost:5174",
-                "http://localhost:5175",
-                "https://team-rank-banking.vercel.app"
-            )
-            .AllowAnyHeader()
-            .AllowAnyMethod();
-    });
+    p.AddPolicy("AllowAll", policy =>
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 });
 
 var app = builder.Build();
-
-
-// ============================
-// MIGRATIONS + SAFE SEED
-// ============================
-using (var scope = app.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    Console.WriteLine("🚀 Running database migrations...");
-
-    context.Database.SetCommandTimeout(120);
-    context.Database.Migrate();
-
-    Console.WriteLine("✅ Migrations completed");
-
-    // Seed admin ONLY if table exists AND empty
-    if (!context.Admins.Any())
-    {
-        var hasher = new PasswordHasher<Admin>();
-
-        var admin = new Admin
-        {
-            Name = "Admin"
-        };
-
-        admin.PasswordHash = hasher.HashPassword(admin, "Admin123!");
-
-        context.Admins.Add(admin);
-        context.SaveChanges();
-
-        Console.WriteLine("✅ Admin seeded");
-    }
-}
 
 // --------------------
 // MIDDLEWARE
 app.UseRouting();
 app.UseCors("AllowAll");
-app.UseAuthentication();
-app.UseAuthorization();
-
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
+
+// ============================
+// RUN MIGRATIONS *AFTER STARTUP*
+// ============================
+app.Lifetime.ApplicationStarted.Register(async () =>
+{
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    try
+    {
+        Console.WriteLine("🚀 Running database migrations...");
+        await context.Database.MigrateAsync();
+        Console.WriteLine("✅ Migrations completed");
+
+        if (!await context.Admins.AnyAsync())
+        {
+            var hasher = new PasswordHasher<Admin>();
+            var admin = new Admin { Name = "Admin" };
+            admin.PasswordHash = hasher.HashPassword(admin, "Admin123!");
+            context.Admins.Add(admin);
+            await context.SaveChangesAsync();
+
+            Console.WriteLine("✅ Admin seeded");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Migration error: {ex}");
+    }
+});
 
 app.Run();
 
@@ -140,13 +114,7 @@ static string ConvertPostgresUrlToConnectionString(string url)
         $"Password={userInfo[1]};" +
         $"Database={uri.AbsolutePath.TrimStart('/')};" +
         $"SslMode=Require;" +
-        $"Trust Server Certificate=true;" +
-        $"Timeout=60;" +
-        $"Command Timeout=60;" +
-        $"Pooling=true;";
+        $"Trust Server Certificate=true;";
 }
-
-
-
 
 
