@@ -70,33 +70,27 @@ app.MapGet("/health", () => Results.Ok("OK"));
 // ============================
 // RUN MIGRATIONS *AFTER STARTUP*
 // ============================
-app.Lifetime.ApplicationStarted.Register(async () =>
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    try
-    {
-        Console.WriteLine("🚀 Running database migrations...");
-        await context.Database.MigrateAsync();
-        Console.WriteLine("✅ Migrations completed");
+    context.Database.Migrate();
 
-        if (!await context.Admins.AnyAsync())
+    if (!context.Admins.Any())
+    {
+        var hasher = new PasswordHasher<Admin>();
+
+        var admin = new Admin
         {
-            var hasher = new PasswordHasher<Admin>();
-            var admin = new Admin { Name = "Admin" };
-            admin.PasswordHash = hasher.HashPassword(admin, "Admin123!");
-            context.Admins.Add(admin);
-            await context.SaveChangesAsync();
+            Name = "admin"
+        };
 
-            Console.WriteLine("✅ Admin seeded");
-        }
+        admin.PasswordHash = hasher.HashPassword(admin, "Admin123!");
+
+        context.Admins.Add(admin);
+        context.SaveChanges();
     }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"❌ Migration error: {ex}");
-    }
-});
+}
 
 app.Run();
 

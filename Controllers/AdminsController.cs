@@ -16,6 +16,7 @@ namespace GemachApp.Controllers
     public class AdminsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly PasswordHasher<Admin> _passwordHasher = new();
 
         public AdminsController(AppDbContext context)
         {
@@ -24,26 +25,17 @@ namespace GemachApp.Controllers
 
 
         // ADMIN LOGIN (HASHED)
- 
+
         [HttpPost("login")]
-        public IActionResult AdminLogin([FromBody] AdminLoginDto dto)
+        public async Task<IActionResult> Login([FromBody] AdminLoginDto dto)
         {
-            var admin = _context.Admins.FirstOrDefault(a => a.Name == dto.Name);
+            var admin = await _context.Admins
+                .FirstOrDefaultAsync(a => a.Name == dto.Name);
 
-            if (admin == null)
-            {
-                Console.WriteLine($"Admin not found for name: {dto.Name}");
-                return Unauthorized(new { message = "Invalid credentials" });
-            }
-
-            Console.WriteLine($"Admin found: {admin.Name}");
-            Console.WriteLine($"Stored hash: {admin.PasswordHash}");
-            Console.WriteLine($"Entered password: {dto.Password}");
             if (admin == null)
                 return Unauthorized("Invalid credentials");
 
-            var hasher = new PasswordHasher<Admin>();
-            var result = hasher.VerifyHashedPassword(
+            var result = _passwordHasher.VerifyHashedPassword(
                 admin,
                 admin.PasswordHash,
                 dto.Password
@@ -52,7 +44,7 @@ namespace GemachApp.Controllers
             if (result == PasswordVerificationResult.Failed)
                 return Unauthorized("Invalid credentials");
 
-            return Ok(new { adminId = admin.Id, adminName = admin.Name });
+            return Ok(admin);
         }
 
         // AGENT LOGIN (PLAIN)
