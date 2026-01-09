@@ -17,9 +17,10 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true);
 // --------------------
 // DB PROVIDER
 var provider =
-    Environment.GetEnvironmentVariable("DB_PROVIDER")?.ToLower()
-    ?? builder.Configuration["DB_PROVIDER"]?.ToLower()
-    ?? "sqlserver";
+    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DATABASE_URL"))
+        ? "postgres"
+        : builder.Configuration["DB_PROVIDER"]?.ToLower()
+            ?? "sqlserver";
 
 Console.WriteLine($"DB_PROVIDER: {provider}");
 
