@@ -35,7 +35,9 @@ namespace GemachApp.Controllers
             if (admin == null)
                 return Unauthorized("Invalid credentials");
 
-            var result = _passwordHasher.VerifyHashedPassword(
+            var hasher = new PasswordHasher<Admin>();
+
+            var result = hasher.VerifyHashedPassword(
                 admin,
                 admin.PasswordHash,
                 dto.Password
@@ -43,6 +45,7 @@ namespace GemachApp.Controllers
 
             if (result == PasswordVerificationResult.Failed)
                 return Unauthorized("Invalid credentials");
+
 
             return Ok(admin);
         }
