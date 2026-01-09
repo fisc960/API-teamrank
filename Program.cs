@@ -35,7 +35,7 @@ if (provider == "postgres")
 else
 {
     connectionString =
-        builder.Configuration.GetConnectionString("ApplicationDbcontext")
+        builder.Configuration.GetConnectionString("DefaultConnection")
         ?? throw new Exception("SQL Server connection string missing");
 }
 
@@ -70,8 +70,9 @@ app.MapGet("/health", () => Results.Ok("OK"));
 // ============================
 // RUN MIGRATIONS *AFTER STARTUP*
 // ============================
-using (var scope = app.Services.CreateScope())
+try
 {
+    using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
     context.Database.Migrate();
@@ -79,17 +80,16 @@ using (var scope = app.Services.CreateScope())
     if (!context.Admins.Any())
     {
         var hasher = new PasswordHasher<Admin>();
-
-        var admin = new Admin
-        {
-            Name = "admin"
-        };
-
+        var admin = new Admin { Name = "admin" };
         admin.PasswordHash = hasher.HashPassword(admin, "Admin123!");
-
         context.Admins.Add(admin);
         context.SaveChanges();
     }
+}
+catch (Exception ex)
+{
+    Console.WriteLine("❌ MIGRATION FAILED:");
+    Console.WriteLine(ex.Message);
 }
 
 app.Run();
