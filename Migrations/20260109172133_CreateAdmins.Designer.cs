@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GemachApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260106235645_CreateAdminsTable")]
-    partial class CreateAdminsTable
+    [Migration("20260109172133_CreateAdmins")]
+    partial class CreateAdmins
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {

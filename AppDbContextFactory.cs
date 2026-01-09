@@ -2,6 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
+using System;
+using System.IO;
 
 namespace GemachApp.Data
 {
@@ -9,44 +11,51 @@ namespace GemachApp.Data
     {
         public AppDbContext CreateDbContext(string[] args)
         {
-            var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER") ?? "sqlserver";
-            Console.WriteLine($"DB_PROVIDER = {dbProvider}");
+            var config = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.Local.json", optional: true)
+                .AddEnvironmentVariables()
+                .Build();
 
-            var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+            var provider =
+                Environment.GetEnvironmentVariable("DB_PROVIDER")
+                ?? config["DB_PROVIDER"]
+                ?? "postgres";
 
-            if (dbProvider.Equals("postgres", StringComparison.OrdinalIgnoreCase))
+            var options = new DbContextOptionsBuilder<AppDbContext>();
+
+            if (provider.ToLower() == "postgres")
             {
-                var pgConn = Environment.GetEnvironmentVariable("DATABASE_URL");
-                if (string.IsNullOrEmpty(pgConn))
-                    throw new Exception("DATABASE_URL environment variable is not set for Postgres.");
+                var dbUrl =
+                    Environment.GetEnvironmentVariable("DATABASE_URL")
+                    ?? throw new Exception("DATABASE_URL missing for Postgres");
 
-                Console.WriteLine("Using PostgreSQL...");
-
-                optionsBuilder
-                    .UseNpgsql(pgConn)  
-                    .EnableSensitiveDataLogging()
-                    .LogTo(Console.WriteLine);
+                options.UseNpgsql(ConvertPostgresUrl(dbUrl));
             }
             else
             {
-                var config = new ConfigurationBuilder()
-                    .SetBasePath(Directory.GetCurrentDirectory())
-                    .AddJsonFile("appsettings.Local.json", optional: true)
-                    .AddEnvironmentVariables()
-                    .Build();
+                var cs = config.GetConnectionString("DefaultConnection")
+                    ?? throw new Exception("DefaultConnection missing");
 
-                var localConn = config.GetConnectionString("ApplicationDbcontext");
-                Console.WriteLine($"Using SQL Server: {localConn}");
-
-                optionsBuilder
-                    .UseSqlServer(localConn)  
-                    .EnableSensitiveDataLogging()
-                    .LogTo(Console.WriteLine);
+                options.UseSqlServer(cs);
             }
 
-            return new AppDbContext(optionsBuilder.Options);
+            return new AppDbContext(options.Options);
+        }
+
+        private static string ConvertPostgresUrl(string url)
+        {
+            var uri = new Uri(url);
+            var userInfo = uri.UserInfo.Split(':');
+
+            return
+                $"Host={uri.Host};" +
+                $"Port={uri.Port};" +
+                $"Username={userInfo[0]};" +
+                $"Password={userInfo[1]};" +
+                $"Database={uri.AbsolutePath.TrimStart('/')};" +
+                $"SslMode=Require;" +
+                $"Trust Server Certificate=true;";
         }
     }
 }
-
-
