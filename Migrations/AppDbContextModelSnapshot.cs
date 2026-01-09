@@ -66,7 +66,7 @@ namespace GemachApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Admins");
+                    b.ToTable("admins");
                 });
 
             modelBuilder.Entity("GemachApp.Data.Agent", b =>

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GemachApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260109172133_CreateAdmins")]
-    partial class CreateAdmins
+    [Migration("20260109173602_CreateAdminsPostgres")]
+    partial class CreateAdminsPostgres
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -68,7 +68,7 @@ namespace GemachApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Admins");
+                    b.ToTable("admins");
                 });
 
             modelBuilder.Entity("GemachApp.Data.Agent", b =>
