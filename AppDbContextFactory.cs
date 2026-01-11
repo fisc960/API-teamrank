@@ -13,31 +13,47 @@ namespace GemachApp.Data
         {
             var config = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: true)
                 .AddJsonFile("appsettings.Local.json", optional: true)
                 .AddEnvironmentVariables()
                 .Build();
+
+            var options = new DbContextOptionsBuilder<AppDbContext>();
 
             var provider =
                 Environment.GetEnvironmentVariable("DB_PROVIDER")
                 ?? config["DB_PROVIDER"]
                 ?? "postgres";
 
-            var options = new DbContextOptionsBuilder<AppDbContext>();
-
-            if (provider.ToLower() == "postgres")
+            if (provider.Equals("postgres", StringComparison.OrdinalIgnoreCase))
             {
-                var dbUrl =
-                    Environment.GetEnvironmentVariable("DATABASE_URL")
-                    ?? throw new Exception("DATABASE_URL missing for Postgres");
+                var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
-                options.UseNpgsql(ConvertPostgresUrl(dbUrl));
+                // CASE 1: Railway-style postgres:// URL
+                if (!string.IsNullOrWhiteSpace(databaseUrl) &&
+                    (databaseUrl.StartsWith("postgres://") ||
+                     databaseUrl.StartsWith("postgresql://")))
+                {
+                    options.UseNpgsql(ConvertPostgresUrl(databaseUrl));
+                }
+                // CASE 2: Already a connection string (Aiven / Railway)
+                else if (!string.IsNullOrWhiteSpace(databaseUrl))
+                {
+                    options.UseNpgsql(databaseUrl);
+                }
+                // CASE 3: Local dev
+                else
+                {
+                    var localPg = config.GetConnectionString("PostgresConnection");
+                    if (string.IsNullOrWhiteSpace(localPg))
+                        throw new Exception("PostgresConnection missing");
+
+                    options.UseNpgsql(localPg);
+                }
             }
             else
             {
-                var cs = config.GetConnectionString("DefaultConnection")
-                    ?? throw new Exception("DefaultConnection missing");
-
-                options.UseSqlServer(cs);
+                throw new Exception("SQL Server is disabled for this app");
             }
 
             return new AppDbContext(options.Options);

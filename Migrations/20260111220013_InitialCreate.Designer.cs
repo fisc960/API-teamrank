@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GemachApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251209015327_FixPostgreSQLTableNames")]
-    partial class FixPostgreSQLTableNames
+    [Migration("20260111220013_InitialCreate")]
+    partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -28,23 +28,19 @@ namespace GemachApp.Migrations
                 {
                     b.Property<int>("AccountId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("accountid");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AccountId"), 1L, 1);
 
                     b.Property<int>("ClientId")
-                        .HasColumnType("int")
-                        .HasColumnName("clientid");
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("TotalAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("totalamount");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("UpdateBalDate")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updatebaldate");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("AccountId");
 
@@ -58,20 +54,17 @@ namespace GemachApp.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
-                    b.Property<string>("Password")
+                    b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("password");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("passwordhash");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -82,26 +75,22 @@ namespace GemachApp.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
                     b.Property<string>("AgentName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
-                        .HasColumnName("agentname");
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<DateTime>("AgentOpenDate")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("agentopendate");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("AgentPassword")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
-                        .HasColumnName("agentpassword");
+                        .HasColumnType("nvarchar(40)");
 
                     b.HasKey("Id");
 
@@ -111,47 +100,38 @@ namespace GemachApp.Migrations
             modelBuilder.Entity("GemachApp.Data.Check", b =>
                 {
                     b.Property<int>("CheckId")
-                        .HasColumnType("int")
-                        .HasColumnName("checkid");
+                        .HasColumnType("int");
 
                     b.Property<int>("AgentId")
-                        .HasColumnType("int")
-                        .HasColumnName("agentid");
+                        .HasColumnType("int");
 
                     b.Property<string>("AgentName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("agentname");
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime>("CheckIssuedDate")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("checkissueddate");
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("ClientId")
-                        .HasColumnType("int")
-                        .HasColumnName("clientid");
+                        .HasColumnType("int");
 
                     b.Property<string>("ClientName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("clientname");
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("OrderTo")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("orderto");
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<decimal>("Sum")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("sum");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("TransId")
-                        .HasColumnType("int")
-                        .HasColumnName("transid");
+                        .HasColumnType("int");
 
                     b.HasKey("CheckId");
 
@@ -162,66 +142,54 @@ namespace GemachApp.Migrations
                 {
                     b.Property<int>("ClientId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("clientid");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ClientId"), 1L, 1);
 
                     b.Property<string>("Agent")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("agent");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ClientFirstName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
-                        .HasColumnName("clientfirstname");
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<string>("ClientLastName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
-                        .HasColumnName("clientlastname");
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<DateTime>("ClientOpenDate")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("clientopendate");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("ClientPassword")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("clientpassword");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Comments")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)")
-                        .HasColumnName("comments");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
-                        .HasColumnName("email");
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<string>("Phonenumber")
                         .IsRequired()
                         .HasMaxLength(18)
-                        .HasColumnType("nvarchar(18)")
-                        .HasColumnName("phonenumber");
+                        .HasColumnType("nvarchar(18)");
 
                     b.Property<string>("SelectedPosition")
                         .IsRequired()
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
-                        .HasColumnName("selectedposition");
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<bool>("UpdateByEmail")
-                        .HasColumnType("bit")
-                        .HasColumnName("updatebyemail");
+                        .HasColumnType("bit");
 
                     b.Property<bool>("Urav")
-                        .HasColumnType("bit")
-                        .HasColumnName("urav");
+                        .HasColumnType("bit");
 
                     b.HasKey("ClientId");
 
@@ -232,52 +200,42 @@ namespace GemachApp.Migrations
                 {
                     b.Property<int>("TransId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("transid");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TransId"), 1L, 1);
 
                     b.Property<int?>("AccountId")
-                        .HasColumnType("int")
-                        .HasColumnName("accountid");
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("Added")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("added");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Agent")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
-                        .HasColumnName("agent");
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<int>("ClientId")
-                        .HasColumnType("int")
-                        .HasColumnName("clientid");
+                        .HasColumnType("int");
 
                     b.Property<bool>("SendEmail")
-                        .HasColumnType("bit")
-                        .HasColumnName("sendemail");
+                        .HasColumnType("bit");
 
                     b.Property<decimal?>("Subtracted")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("subtracted");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal?>("TotalAdded")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("totaladded");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal?>("TotalSubtracted")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("totalsubtracted");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("TransDate")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("transdate");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("TransId");
 
@@ -292,54 +250,46 @@ namespace GemachApp.Migrations
                 {
                     b.Property<int>("RecordId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("recordid");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RecordId"), 1L, 1);
 
                     b.Property<string>("Agent")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("agent");
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ColumName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
-                        .HasColumnName("columname");
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("ObjectId")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
-                        .HasColumnName("objectid");
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("PrevVersion")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)")
-                        .HasColumnName("prevversion");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<string>("TableName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
-                        .HasColumnName("tablename");
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("timestamp");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("UpdatedVersion")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)")
-                        .HasColumnName("updatedversion");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.HasKey("RecordId");
 
-                    b.ToTable("updates");
+                    b.ToTable("Updates");
                 });
 
             modelBuilder.Entity("GemachApp.Data.Account", b =>
