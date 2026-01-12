@@ -94,51 +94,6 @@ catch (Exception ex)
 }
 
 
-// Add this BEFORE app.Run();   remove the endpoint from your code for security  until line  141
-app.MapPost("/admin/reset-database", async () =>
-{
-    try
-    {
-        using var scope = app.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        // Drop and recreate schema
-        await context.Database.ExecuteSqlRawAsync("DROP SCHEMA public CASCADE;");
-        await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA public;");
-
-        // Run migrations
-        await context.Database.MigrateAsync();
-
-        // Seed admin
-        if (!context.Admins.Any())
-        {
-            var hasher = new PasswordHasher<Admin>();
-            var admin = new Admin { Name = "admin" };
-            admin.PasswordHash = hasher.HashPassword(admin, "Admin123!");
-            context.Admins.Add(admin);
-            await context.SaveChangesAsync();
-        }
-
-        return Results.Ok(new { message = "Database reset successfully!", timestamp = DateTime.UtcNow });
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem($"Error: {ex.Message}\n\nStack: {ex.StackTrace}");
-    }
-});
-
-app.MapGet("/admin/check-users", async () =>
-{
-    using var scope = app.Services.CreateScope();
-    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    var admins = await context.Admins.ToListAsync();
-    return Results.Ok(new
-    {
-        count = admins.Count,
-        users = admins.Select(a => new { a.Id, a.Name }).ToList()
-    });
-});
 app.Run();
 
 // --------------------
