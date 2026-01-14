@@ -5,7 +5,7 @@ using GemachApp.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // --------------------
-// PORT
+// PORT (Render / Railway safe)
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.ConfigureKestrel(o => o.ListenAnyIP(int.Parse(port)));
 Console.WriteLine($"Backend listening on port {port}");
@@ -15,48 +15,32 @@ Console.WriteLine($"Backend listening on port {port}");
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true);
 
 // --------------------
-// DB PROVIDER
-var provider =
-    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DATABASE_URL"))
-        ? "postgres"
-        : builder.Configuration["DB_PROVIDER"]?.ToLower()
-            ?? "sqlserver";
+// DATABASE (POSTGRES ONLY)
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
-Console.WriteLine($"DB_PROVIDER: {provider}");
-
-string connectionString;
-
-if (provider == "postgres")
+if (string.IsNullOrWhiteSpace(databaseUrl))
 {
-    var dbUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
-        ?? throw new Exception("DATABASE_URL is required");
-
-    connectionString = ConvertPostgresUrlToConnectionString(dbUrl);
-}
-else
-{
-    connectionString =
-        builder.Configuration.GetConnectionString("PostgresConnection")
-        ?? throw new Exception("SQL Server connection string missing");
+    throw new Exception("DATABASE_URL is missing");
 }
 
-// --------------------
-// DB CONTEXT
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    if (provider == "postgres")
-        options.UseNpgsql(connectionString);
-    else
-        options.UseSqlServer(connectionString);
+    options.UseNpgsql(
+        databaseUrl,
+        o => o.EnableRetryOnFailure()
+    );
 });
 
 // --------------------
 // SERVICES
 builder.Services.AddControllers();
+
 builder.Services.AddCors(p =>
 {
     p.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod());
 });
 
 var app = builder.Build();
@@ -69,49 +53,55 @@ app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
 
 // ============================
-// RUN MIGRATIONS *AFTER STARTUP*
-// ============================
-try
+// CONTROLLED MIGRATIONS (SAFE)
+var runMigrations =
+    Environment.GetEnvironmentVariable("RUN_MIGRATIONS") == "true";
+
+if (runMigrations)
 {
-    using var scope = app.Services.CreateScope();
-    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    Console.WriteLine("🟢 RUN_MIGRATIONS=true — starting migrations");
 
-    context.Database.Migrate();
-
-    if (!context.Admins.Any())
+    try
     {
-        var hasher = new PasswordHasher<Admin>();
-        var admin = new Admin { Name = "admin" };
-        admin.PasswordHash = hasher.HashPassword(admin, "Admin123!");
-        context.Admins.Add(admin);
-        context.SaveChanges();
+        using var scope = app.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        context.Database.Migrate();
+        Console.WriteLine("✅ Database migrated");
+
+        // ---- SAFE ADMIN SEED ----
+        if (!context.Admins.Any())
+        {
+            var hasher = new PasswordHasher<Admin>();
+
+            var admin = new Admin
+            {
+                Name = "admin"
+            };
+
+            admin.PasswordHash =
+                hasher.HashPassword(admin, "Admin123!");
+
+            context.Admins.Add(admin);
+            context.SaveChanges();
+
+            Console.WriteLine("✅ Default admin created");
+        }
+        else
+        {
+            Console.WriteLine("ℹ️ Admin already exists — skipping seed");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("❌ MIGRATION FAILED");
+        Console.WriteLine(ex.Message);
     }
 }
-catch (Exception ex)
+else
 {
-    Console.WriteLine("❌ MIGRATION FAILED:");
-    Console.WriteLine(ex.Message);
+    Console.WriteLine("⏭️ RUN_MIGRATIONS=false — skipping migrations");
 }
-
 
 app.Run();
-
-// --------------------
-// HELPERS
-static string ConvertPostgresUrlToConnectionString(string url)
-{
-    // Remove query parameters from the URL first
-    var uri = new Uri(url.Split('?')[0]); // This removes the ?sslmode part
-    var userInfo = uri.UserInfo.Split(':');
-
-    return
-        $"Host={uri.Host};" +
-        $"Port={uri.Port};" +
-        $"Username={userInfo[0]};" +
-        $"Password={userInfo[1]};" +
-        $"Database={uri.AbsolutePath.TrimStart('/')};" +
-        $"SslMode=Require;" +
-        $"Trust Server Certificate=true;";
-}
-
 
