@@ -50,34 +50,7 @@ namespace GemachApp.Controllers
             return Ok(admin);
         }
 
-        // ADMIN CREATES NEW AGENT
-        [HttpPost("signup")]
-        public async Task<IActionResult> SignupAgent([FromBody] NewAgentSignupDto dto)
-        {
-            // Check if agent already exists
-            var existingAgent = await _context.Agents
-                .FirstOrDefaultAsync(a => a.AgentName == dto.AgentName);
-
-            if (existingAgent != null)
-                return BadRequest("Agent name already exists");
-
-            var newAgent = new Agent
-            {
-                AgentName = dto.AgentName,
-                AgentPassword = dto.AgentPassword, // Plain text password for agents
-                AgentOpenDate = DateTime.UtcNow
-            };
-
-            _context.Agents.Add(newAgent);
-            await _context.SaveChangesAsync();
-
-            return Ok(new
-            {
-                agentId = newAgent.Id,
-                agentName = newAgent.AgentName,
-                agentOpenDate = newAgent.AgentOpenDate
-            });
-        }
+        
 
         // AGENT LOGIN (PLAIN)
 
@@ -149,12 +122,6 @@ namespace GemachApp.Controllers
     {
         public string Name { get; set; }
         public string Password { get; set; }
-    }
-
-    public class NewAgentSignupDto
-    {
-        public string AgentName { get; set; }
-        public string AgentPassword { get; set; }
     }
 
     public class ChangePasswordDto

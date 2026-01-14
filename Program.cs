@@ -36,7 +36,7 @@ if (provider == "postgres")
 else
 {
     connectionString =
-        builder.Configuration.GetConnectionString("DefaultConnection")
+        builder.Configuration.GetConnectionString("PostgresConnection")
         ?? throw new Exception("SQL Server connection string missing");
 }
 
@@ -100,7 +100,8 @@ app.Run();
 // HELPERS
 static string ConvertPostgresUrlToConnectionString(string url)
 {
-    var uri = new Uri(url);
+    // Remove query parameters from the URL first
+    var uri = new Uri(url.Split('?')[0]); // This removes the ?sslmode part
     var userInfo = uri.UserInfo.Split(':');
 
     return
