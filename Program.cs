@@ -1,38 +1,41 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --------------------
-// PORT (Render / Railway safe)
+#region PORT (Render / Railway safe)
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.ConfigureKestrel(o => o.ListenAnyIP(int.Parse(port)));
-Console.WriteLine($"Backend listening on port {port}");
+Console.WriteLine($"🌐 Backend listening on port {port}");
+#endregion
 
-// --------------------
-// CONFIG
+#region CONFIG
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true);
+#endregion
 
-// --------------------
-// DATABASE (POSTGRES ONLY)
-var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-Console.WriteLine($"📍 DATABASE_URL = {databaseUrl}"); 
-if (string.IsNullOrWhiteSpace(databaseUrl))
+#region DATABASE CONFIG
+
+var runtimeDb = Environment.GetEnvironmentVariable("DATABASE_URL");
+if (string.IsNullOrWhiteSpace(runtimeDb))
 {
-    throw new Exception("DATABASE_URL is missing");
+    throw new Exception("❌ DATABASE_URL is missing");
 }
+
+Console.WriteLine("📍 Runtime DB configured");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    options.UseNpgsql(
-        databaseUrl,
-        o => o.EnableRetryOnFailure()
-    );
+    options.UseNpgsql(runtimeDb, o =>
+    {
+        o.EnableRetryOnFailure(5);
+        o.CommandTimeout(120);
+    });
 });
 
-// --------------------
-// SERVICES
+#endregion
+
+#region SERVICES
 builder.Services.AddControllers();
 
 builder.Services.AddCors(p =>
@@ -42,46 +45,58 @@ builder.Services.AddCors(p =>
               .AllowAnyHeader()
               .AllowAnyMethod());
 });
+#endregion
 
 var app = builder.Build();
 
-// --------------------
-// MIDDLEWARE
+#region MIDDLEWARE
 app.UseRouting();
 app.UseCors("AllowAll");
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
+#endregion
 
-// ============================
-// CONTROLLED MIGRATIONS (SAFE)
+#region CONTROLLED MIGRATIONS (SAFE)
+
 var runMigrations =
-    Environment.GetEnvironmentVariable("RUN_MIGRATIONS") == "true";
+    Environment.GetEnvironmentVariable("RUN_MIGRATIONS")?.ToLower() == "true";
 
 if (runMigrations)
 {
-    Console.WriteLine("🟢 RUN_MIGRATIONS=true — starting migrations");
+    Console.WriteLine("🟢 RUN_MIGRATIONS=true — preparing migration context");
+
+    var migrationDb =
+        Environment.GetEnvironmentVariable("DATABASE_URL_MIGRATIONS")
+        ?? runtimeDb;
 
     try
     {
         using var scope = app.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        Console.WriteLine("🔍 About to run Migrate()...");
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(migrationDb, o =>
+            {
+                o.CommandTimeout(300);
+                o.EnableRetryOnFailure(5);
+            })
+            .Options;
+
+        using var context = new AppDbContext(options);
+
+        Console.WriteLine("🔄 Running EF Core migrations...");
         context.Database.Migrate();
         Console.WriteLine("✅ Database migrated");
 
-        // ---- SAFE ADMIN SEED ----
+        // ---------- SAFE ADMIN SEED ----------
         if (!context.Admins.Any())
         {
             var hasher = new PasswordHasher<Admin>();
 
             var admin = new Admin
             {
-                Name = "admin"
+                Name = "admin",
+                PasswordHash = hasher.HashPassword(null!, "Admin123!")
             };
-
-            admin.PasswordHash =
-                hasher.HashPassword(admin, "Admin123!");
 
             context.Admins.Add(admin);
             context.SaveChanges();
@@ -96,14 +111,12 @@ if (runMigrations)
     catch (Exception ex)
     {
         Console.WriteLine("❌ MIGRATION FAILED");
-        Console.WriteLine($"Error Message: {ex.Message}");
-        Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+        Console.WriteLine(ex.Message);
+
         if (ex.InnerException != null)
         {
-            Console.WriteLine($"--- Inner Exception ---");
-            Console.WriteLine($"Inner Type: {ex.InnerException.GetType().Name}");
-            Console.WriteLine($"Inner Message: {ex.InnerException.Message}");
-            Console.WriteLine($"Inner Stack: {ex.InnerException.StackTrace}");
+            Console.WriteLine("— Inner Exception —");
+            Console.WriteLine(ex.InnerException.Message);
         }
     }
 }
@@ -111,6 +124,8 @@ else
 {
     Console.WriteLine("⏭️ RUN_MIGRATIONS=false — skipping migrations");
 }
+
+#endregion
 
 app.Run();
 
