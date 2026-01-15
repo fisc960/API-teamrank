@@ -17,7 +17,7 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true);
 // --------------------
 // DATABASE (POSTGRES ONLY)
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-
+Console.WriteLine($"📍 DATABASE_URL = {databaseUrl}"); 
 if (string.IsNullOrWhiteSpace(databaseUrl))
 {
     throw new Exception("DATABASE_URL is missing");
