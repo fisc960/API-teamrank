@@ -23,7 +23,7 @@ namespace GemachApp.Data
             // lowercase convention table names for PostgreSQL
             if (Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL")
             {
-                foreach (var entity in modelBuilder.Model.GetEntityTypes())
+                /*foreach (var entity in modelBuilder.Model.GetEntityTypes())
                 {
                     entity.SetTableName(entity.GetTableName()?.ToLower());
 
@@ -31,6 +31,25 @@ namespace GemachApp.Data
                     {
                         var tableIdentifier = StoreObjectIdentifier.Table(entity.GetTableName(), null);
                         property.SetColumnName(property.GetColumnName(tableIdentifier)?.ToLower());
+                    }
+                }*/
+
+                foreach (var entity in modelBuilder.Model.GetEntityTypes())
+                {
+                    var tableName = entity.GetTableName();
+                    if (!string.IsNullOrEmpty(tableName))
+                    {
+                        entity.SetTableName(tableName.ToLower());
+
+                        foreach (var property in entity.GetProperties())
+                        {
+                            var tableIdentifier = StoreObjectIdentifier.Table(tableName.ToLower(), null);
+                            var columnName = property.GetColumnName(tableIdentifier);
+                            if (!string.IsNullOrEmpty(columnName))
+                            {
+                                property.SetColumnName(columnName.ToLower());
+                            }
+                        }
                     }
                 }
             }
@@ -84,12 +103,12 @@ namespace GemachApp.Data
             });
 
             //  Admin
-            /*modelBuilder.Entity<Admin>(e =>
+            modelBuilder.Entity<Admin>(e =>
             {
                 e.HasKey(a => a.Id);
-                e.Property(a => a.Password).HasMaxLength(128);
-                e.Property(a => a.PasswordHash).HasMaxLength(256);
-            });*/
+                e.Property(a => a.Name).HasMaxLength(128).IsRequired();
+                e.Property(a => a.PasswordHash).HasMaxLength(256).IsRequired();
+            });
 
             //  Checks
             modelBuilder.Entity<Check>(e =>
