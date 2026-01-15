@@ -66,6 +66,7 @@ if (runMigrations)
         using var scope = app.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+        Console.WriteLine("🔍 About to run Migrate()...");
         context.Database.Migrate();
         Console.WriteLine("✅ Database migrated");
 
@@ -95,7 +96,15 @@ if (runMigrations)
     catch (Exception ex)
     {
         Console.WriteLine("❌ MIGRATION FAILED");
-        Console.WriteLine(ex.Message);
+        Console.WriteLine($"Error Message: {ex.Message}");
+        Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+        if (ex.InnerException != null)
+        {
+            Console.WriteLine($"--- Inner Exception ---");
+            Console.WriteLine($"Inner Type: {ex.InnerException.GetType().Name}");
+            Console.WriteLine($"Inner Message: {ex.InnerException.Message}");
+            Console.WriteLine($"Inner Stack: {ex.InnerException.StackTrace}");
+        }
     }
 }
 else
