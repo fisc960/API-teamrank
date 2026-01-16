@@ -15,13 +15,11 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true);
 #endregion
 
 #region DATABASE CONFIG
-
 var runtimeDb = Environment.GetEnvironmentVariable("DATABASE_URL");
 if (string.IsNullOrWhiteSpace(runtimeDb))
 {
     throw new Exception("❌ DATABASE_URL is missing");
 }
-
 Console.WriteLine("📍 Runtime DB configured");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -29,15 +27,13 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(runtimeDb, o =>
     {
         o.EnableRetryOnFailure(5);
-        o.CommandTimeout(120);
+        o.CommandTimeout(120); // 120 seconds for runtime queries
     });
 });
-
 #endregion
 
 #region SERVICES
 builder.Services.AddControllers();
-
 builder.Services.AddCors(p =>
 {
     p.AddPolicy("AllowAll", policy =>
@@ -57,27 +53,24 @@ app.MapGet("/health", () => Results.Ok("OK"));
 #endregion
 
 #region CONTROLLED MIGRATIONS (SAFE)
-
-var runMigrations =
-    Environment.GetEnvironmentVariable("RUN_MIGRATIONS")?.ToLower() == "true";
+var runMigrations = Environment.GetEnvironmentVariable("RUN_MIGRATIONS")?.ToLower() == "true";
 
 if (runMigrations)
 {
     Console.WriteLine("🟢 RUN_MIGRATIONS=true — preparing migration context");
 
-    var migrationDb =
-        Environment.GetEnvironmentVariable("DATABASE_URL_MIGRATIONS")
-        ?? runtimeDb;
+    // Use separate migration connection (direct DB, not pooler)
+    var migrationDb = Environment.GetEnvironmentVariable("DATABASE_URL_MIGRATIONS") ?? runtimeDb;
+
+    Console.WriteLine($"📍 Migration DB: {(migrationDb == runtimeDb ? "Using runtime DB" : "Using dedicated migration DB")}");
 
     try
     {
-        using var scope = app.Services.CreateScope();
-
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(migrationDb, o =>
             {
-                o.CommandTimeout(300);
-                o.EnableRetryOnFailure(5);
+                o.CommandTimeout(300); // 5 minutes for migrations
+                o.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
             })
             .Options;
 
@@ -85,22 +78,19 @@ if (runMigrations)
 
         Console.WriteLine("🔄 Running EF Core migrations...");
         context.Database.Migrate();
-        Console.WriteLine("✅ Database migrated");
+        Console.WriteLine("✅ Database migrated successfully");
 
         // ---------- SAFE ADMIN SEED ----------
         if (!context.Admins.Any())
         {
             var hasher = new PasswordHasher<Admin>();
-
             var admin = new Admin
             {
                 Name = "admin",
                 PasswordHash = hasher.HashPassword(null!, "Admin123!")
             };
-
             context.Admins.Add(admin);
             context.SaveChanges();
-
             Console.WriteLine("✅ Default admin created");
         }
         else
@@ -111,21 +101,22 @@ if (runMigrations)
     catch (Exception ex)
     {
         Console.WriteLine("❌ MIGRATION FAILED");
-        Console.WriteLine(ex.Message);
+        Console.WriteLine($"Error: {ex.Message}");
 
         if (ex.InnerException != null)
         {
             Console.WriteLine("— Inner Exception —");
             Console.WriteLine(ex.InnerException.Message);
         }
+
+        // Don't throw - let app start anyway
+        Console.WriteLine("⚠️ App will continue without migrations");
     }
 }
 else
 {
     Console.WriteLine("⏭️ RUN_MIGRATIONS=false — skipping migrations");
 }
-
 #endregion
 
 app.Run();
-
