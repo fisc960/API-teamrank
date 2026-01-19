@@ -1,5 +1,4 @@
-﻿
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using System;
@@ -20,41 +19,37 @@ namespace GemachApp.Data
 
             var options = new DbContextOptionsBuilder<AppDbContext>();
 
+            // Only PostgreSQL is supported
             var provider =
                 Environment.GetEnvironmentVariable("DB_PROVIDER")
                 ?? config["DB_PROVIDER"]
                 ?? "postgres";
 
-            if (provider.Equals("postgres", StringComparison.OrdinalIgnoreCase))
-            {
-                var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+            if (!provider.Equals("postgres", StringComparison.OrdinalIgnoreCase))
+                throw new Exception("Only PostgreSQL is supported");
 
-                // CASE 1: Railway-style postgres:// URL
-                if (!string.IsNullOrWhiteSpace(databaseUrl) &&
-                    (databaseUrl.StartsWith("postgres://") ||
-                     databaseUrl.StartsWith("postgresql://")))
-                {
-                    options.UseNpgsql(ConvertPostgresUrl(databaseUrl));
-                }
-                // CASE 2: Already a connection string (Aiven / Railway)
-                else if (!string.IsNullOrWhiteSpace(databaseUrl))
-                {
-                    options.UseNpgsql(databaseUrl);
-                }
-                // CASE 3: Local dev
-                else
-                {
-                    var localPg = config.GetConnectionString("PostgresConnection");
-                    if (string.IsNullOrWhiteSpace(localPg))
-                        throw new Exception("PostgresConnection missing");
+            // 🔐 IMPORTANT:
+            // EF CLI MUST use direct DB (DATABASE_URL_MIGRATIONS)
+            // Runtime may use pooler (DATABASE_URL)
+            var databaseUrl =
+                Environment.GetEnvironmentVariable("DATABASE_URL_MIGRATIONS")
+                ?? Environment.GetEnvironmentVariable("DATABASE_URL");
 
-                    options.UseNpgsql(localPg);
-                }
-            }
-            else
+            if (string.IsNullOrWhiteSpace(databaseUrl))
+                throw new Exception("DATABASE_URL_MIGRATIONS or DATABASE_URL is required");
+
+            // Convert postgres:// URL → ADO.NET connection string if needed
+            if (databaseUrl.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+                databaseUrl.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
             {
-                throw new Exception("SQL Server is disabled for this app");
+                databaseUrl = ConvertPostgresUrl(databaseUrl);
             }
+
+            options.UseNpgsql(databaseUrl, o =>
+            {
+                o.CommandTimeout(300); // long timeout for migrations
+                o.EnableRetryOnFailure(5);
+            });
 
             return new AppDbContext(options.Options);
         }
@@ -62,14 +57,14 @@ namespace GemachApp.Data
         private static string ConvertPostgresUrl(string url)
         {
             var uri = new Uri(url);
-            var userInfo = uri.UserInfo.Split(':');
+            var userInfo = uri.UserInfo.Split(':', 2);
 
             return
                 $"Host={uri.Host};" +
                 $"Port={uri.Port};" +
+                $"Database={uri.AbsolutePath.TrimStart('/')};" +
                 $"Username={userInfo[0]};" +
                 $"Password={userInfo[1]};" +
-                $"Database={uri.AbsolutePath.TrimStart('/')};" +
                 $"SslMode=Require;" +
                 $"Trust Server Certificate=true;";
         }

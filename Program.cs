@@ -37,9 +37,15 @@ builder.Services.AddControllers();
 builder.Services.AddCors(p =>
 {
     p.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod());
+        policy.WithOrigins(
+            "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
+            "https://team-rank-banking.vercel.app",  // Add your production domain too
+            "http://localhost:5173",  // For local development
+            "http://localhost:3000"   // For local development
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials());
 });
 #endregion
 
