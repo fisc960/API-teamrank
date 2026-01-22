@@ -47,6 +47,9 @@ builder.Services.AddCors(p =>
         .AllowAnyMethod()
         .AllowCredentials());
 });
+
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IEmailService, EmailService>();
 #endregion
 
 var app = builder.Build();

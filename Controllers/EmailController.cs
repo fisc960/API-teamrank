@@ -18,6 +18,13 @@ namespace GemachApp.Controllers
             _configuration = configuration;
         }
 
+        private readonly IEmailService _email;
+
+        public EmailController(IEmailService email)
+        {
+            _email = email;
+        }
+
         [HttpPost("SendEmail")]
         public IActionResult SendEmail([FromBody] EmailRequest emailRequest)
         {
