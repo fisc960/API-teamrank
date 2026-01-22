@@ -1,4 +1,224 @@
-﻿using GemachApp.Data;
+﻿
+
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using GemachApp.Data;
+//using GemachApp.Models;
+
+namespace GemachApp.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class TransactionsController : ControllerBase
+    {
+        private readonly AppDbContext _context;
+
+        public TransactionsController(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        // =========================================================
+        // PROCESS TRANSACTION
+        // =========================================================
+        [HttpPost("ProcessTransaction")]
+        public async Task<IActionResult> ProcessTransaction([FromBody] TransactionRequest request)
+        {
+            if (request == null)
+                return BadRequest("Missing transaction payload");
+
+            if ((request.Added ?? 0) == 0 && (request.Subtracted ?? 0) == 0)
+                return BadRequest("Either Added or Subtracted must be greater than zero");
+
+            IActionResult result = StatusCode(500, "Unhandled error");
+
+            var strategy = _context.Database.CreateExecutionStrategy();
+
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var tx = await _context.Database.BeginTransactionAsync();
+
+                try
+                {
+                    // 1️⃣ Validate client
+                    var client = await _context.Clients.FindAsync(request.ClientId);
+                    if (client == null)
+                    {
+                        result = NotFound("Client not found");
+                        return;
+                    }
+
+                    // 2️⃣ Get or create account
+                    var account = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.ClientId == request.ClientId);
+
+                    if (account == null)
+                    {
+                        account = new Account
+                        {
+                            ClientId = request.ClientId,
+                            TotalAmount = 0m,
+                            UpdateBalDate = DateTime.UtcNow
+                        };
+
+                        _context.Accounts.Add(account);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    // 3️⃣ Calculate new balance safely
+                    decimal add = request.Added ?? 0m;
+                    decimal sub = request.Subtracted ?? 0m;
+                    decimal currentBalance = account.TotalAmount ?? 0m;
+                    decimal newBalance = currentBalance + add - sub;
+
+                    if (newBalance < 0)
+                    {
+                        result = BadRequest("Transaction would result in negative balance");
+                        return;
+                    }
+
+                    // 4️⃣ Calculate running totals
+                    var totals = await _context.Transactions
+                        .Where(t => t.ClientId == request.ClientId)
+                        .Select(t => new
+                        {
+                            Added = t.Added ?? 0m,
+                            Subtracted = t.Subtracted ?? 0m
+                        })
+                        .ToListAsync();
+
+                    decimal totalAdded = totals.Sum(t => t.Added) + add;
+                    decimal totalSubtracted = totals.Sum(t => t.Subtracted) + sub;
+
+                    // 5️⃣ Create transaction
+                    var transaction = new Transaction
+                    {
+                        ClientId = request.ClientId,
+                        Added = add > 0 ? add : null,
+                        Subtracted = sub > 0 ? sub : null,
+                        TotalAdded = totalAdded,
+                        TotalSubtracted = totalSubtracted,
+                        Agent = request.Agent ?? "System",
+                        TransDate = DateTime.UtcNow
+                    };
+
+                    _context.Transactions.Add(transaction);
+
+                    // 6️⃣ Update account
+                    account.TotalAmount = newBalance;
+                    account.UpdateBalDate = DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+                    await tx.CommitAsync();
+
+                    result = Ok(new
+                    {
+                        message = "Transaction processed successfully",
+                        transactionId = transaction.TransId,
+                        balance = newBalance
+                    });
+                }
+                catch (Exception ex)
+                {
+                    await tx.RollbackAsync();
+                    Console.Error.WriteLine(ex);
+                    result = StatusCode(500, "Transaction failed");
+                }
+            });
+
+            return result;
+        }
+
+        // =========================================================
+        // GET TRANSACTIONS BY CLIENT
+        // =========================================================
+        [HttpGet("GetTransactionsByClient/{clientId}")]
+        public async Task<IActionResult> GetTransactionsByClient(int clientId)
+        {
+            var transactions = await _context.Transactions
+                .Where(t => t.ClientId == clientId)
+                .OrderByDescending(t => t.TransDate)
+                .ToListAsync();
+
+            return Ok(transactions);
+        }
+
+        // =========================================================
+        // DELETE TRANSACTION
+        // =========================================================
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTransaction(int id)
+        {
+            IActionResult result = StatusCode(500, "Unhandled error");
+
+            var strategy = _context.Database.CreateExecutionStrategy();
+
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var tx = await _context.Database.BeginTransactionAsync();
+
+                try
+                {
+                    var transaction = await _context.Transactions.FindAsync(id);
+                    if (transaction == null)
+                    {
+                        result = NotFound("Transaction not found");
+                        return;
+                    }
+
+                    var account = await _context.Accounts
+                        .FirstOrDefaultAsync(a => a.ClientId == transaction.ClientId);
+
+                    if (account == null)
+                    {
+                        result = NotFound("Account not found");
+                        return;
+                    }
+
+                    decimal add = transaction.Added ?? 0m;
+                    decimal sub = transaction.Subtracted ?? 0m;
+
+                    account.TotalAmount = (account.TotalAmount ?? 0m) - add + sub;
+                    account.UpdateBalDate = DateTime.UtcNow;
+
+                    _context.Transactions.Remove(transaction);
+                    await _context.SaveChangesAsync();
+                    await tx.CommitAsync();
+
+                    result = Ok("Transaction deleted");
+                }
+                catch (Exception ex)
+                {
+                    await tx.RollbackAsync();
+                    Console.Error.WriteLine(ex);
+                    result = StatusCode(500, "Delete failed");
+                }
+            });
+
+            return result;
+        }
+
+        public class TransactionRequest
+        {
+            public int ClientId { get; set; }
+            public decimal? Added { get; set; }
+            public decimal? Subtracted { get; set; }
+            public string? Agent { get; set; }
+        }
+
+
+    }
+}
+
+
+
+
+
+
+/*
+
+
+using GemachApp.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
@@ -545,7 +765,7 @@ namespace GemachApp.Controllers
             }
         }
        
-      /* -----> */ [HttpGet("TestConnection")]
+      //* ----->  [HttpGet("TestConnection")]
         public async Task<IActionResult> TestConnection()
         {
             try
@@ -702,4 +922,4 @@ namespace GemachApp.Controllers
     }
 }
 
-
+*/
