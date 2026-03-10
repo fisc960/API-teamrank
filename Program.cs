@@ -82,14 +82,15 @@ builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("CorsPolicy", policy =>
         policy
-            .WithOrigins(
+            /*.WithOrigins(
                 "https://team-rank-banking.vercel.app",
                 "http://localhost:5173",
                 "http://localhost:3000"
-            )
+            )*/
+            .AllowAnyOrigin()  // Temporarily allow all origins for testing
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials()
+           // .AllowCredentials()
     );
 });
 

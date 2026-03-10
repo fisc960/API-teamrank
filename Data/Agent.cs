@@ -9,7 +9,6 @@ namespace GemachApp.Data
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         //[Required(ErrorMessage = "you must enter Name")]
-        - 
         public string AgentName { get; set; }
         [Required(ErrorMessage = "you must enter Password")]
         [MaxLength(40, ErrorMessage = "The Password is too long (max 40 chars)")]
