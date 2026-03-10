@@ -1,131 +1,168 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using GemachApp.Data;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
-#region PORT (Render / Railway safe)
+#region CONFIG LOADING (VERY IMPORTANT)
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+    .AddEnvironmentVariables();
+#endregion
+
+#region ENV INFO
+var env = builder.Environment.EnvironmentName;
+Console.WriteLine($"🧠 Environment = {env}");
+#endregion
+
+#region PORT (Render / Local / IIS safe)
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.ConfigureKestrel(o => o.ListenAnyIP(int.Parse(port)));
-Console.WriteLine($"🌐 Backend listening on port {port}");
-#endregion
-
-#region CONFIG
-builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true);
-#endregion
-
-#region DATABASE CONFIG
-var runtimeDb = Environment.GetEnvironmentVariable("DATABASE_URL");
-if (string.IsNullOrWhiteSpace(runtimeDb))
+builder.WebHost.ConfigureKestrel(o =>
 {
-    throw new Exception("❌ DATABASE_URL is missing");
-}
-Console.WriteLine("📍 Runtime DB configured");
+    o.ListenAnyIP(int.Parse(port));
+});
+Console.WriteLine($"🌐 Listening on port {port}");
+#endregion
+
+#region DATABASE SELECTION (SQL Server vs Supabase)
+
+var dbProvider = builder.Configuration["DB_PROVIDER"] ?? "sqlserver";
+Console.WriteLine($"🗄️ DB_PROVIDER = {dbProvider}");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    options.UseNpgsql(runtimeDb, o =>
+    if (dbProvider == "sqlserver")
     {
-        o.EnableRetryOnFailure(5);
-        o.CommandTimeout(120); // 120 seconds for runtime queries
-    });
+        // =========================
+        // LOCAL — SQL SERVER
+        Console.WriteLine("💻 Using SQL Server");
+
+        var cs = builder.Configuration.GetConnectionString("SqlServerConnection");
+        if (string.IsNullOrWhiteSpace(cs))
+            throw new Exception("❌ SqlServerConnection missing");
+
+        options.UseSqlServer(cs, sql =>
+        {
+            sql.EnableRetryOnFailure(5);
+            sql.CommandTimeout(120);
+        });
+    }
+    else if (dbProvider == "postgres")
+    {
+        // =========================
+        // PRODUCTION — SUPABASE
+        Console.WriteLine("📦 Using PostgreSQL (Supabase)");
+
+        if (builder.Environment.IsDevelopment())
+            throw new Exception("❌ Postgres is disabled in local development");
+
+        var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+        if (string.IsNullOrWhiteSpace(databaseUrl))
+            throw new Exception("❌ DATABASE_URL missing");
+
+        options.UseNpgsql(ConvertDatabaseUrl(databaseUrl), npgsql =>
+        {
+            npgsql.EnableRetryOnFailure(5);
+            npgsql.CommandTimeout(120);
+        });
+    }
+    else
+    {
+        throw new Exception($"❌ Invalid DB_PROVIDER: {dbProvider}");
+    }
 });
+
+#endregion
+
+#region CORS (Vercel + Local)
+
+builder.Services.AddCors(opt =>
+{
+    opt.AddPolicy("CorsPolicy", policy =>
+        policy
+            .WithOrigins(
+                "https://team-rank-banking.vercel.app",
+                "http://localhost:5173",
+                "http://localhost:3000"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+    );
+});
+
 #endregion
 
 #region SERVICES
 builder.Services.AddControllers();
-builder.Services.AddCors(p =>
-{
-    p.AddPolicy("AllowAll", policy =>
-        policy.WithOrigins(
-            "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
-            "https://team-rank-banking.vercel.app",  // Add your production domain too
-            "http://localhost:5173",  // For local development
-            "http://localhost:3000"   // For local development
-        )
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials());
-});
-
 builder.Services.AddHttpClient();
-builder.Services.AddScoped<IEmailService, EmailService>();
 #endregion
 
 var app = builder.Build();
 
 #region MIDDLEWARE
 app.UseRouting();
-app.UseCors("AllowAll");
+app.UseCors("CorsPolicy");
+app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
 #endregion
 
-#region CONTROLLED MIGRATIONS (SAFE)
-var runMigrations = Environment.GetEnvironmentVariable("RUN_MIGRATIONS")?.ToLower() == "true";
 
-if (runMigrations)
+#region MIGRATIONS + SAFE ADMIN SEED
+
+using (var scope = app.Services.CreateScope())
 {
-    Console.WriteLine("🟢 RUN_MIGRATIONS=true — preparing migration context");
+    var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Use separate migration connection (direct DB, not pooler)
-    var migrationDb = Environment.GetEnvironmentVariable("DATABASE_URL_MIGRATIONS") ?? runtimeDb;
+    Console.WriteLine("🔄 Applying migrations...");
+    ctx.Database.Migrate();
+    Console.WriteLine("✅ Database ready");
 
-    Console.WriteLine($"📍 Migration DB: {(migrationDb == runtimeDb ? "Using runtime DB" : "Using dedicated migration DB")}");
-
-    try
+    if (!ctx.Admins.Any())
     {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(migrationDb, o =>
-            {
-                o.CommandTimeout(300); // 5 minutes for migrations
-                o.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
-            })
-            .Options;
+        Console.WriteLine("🌱 Seeding admin...");
 
-        using var context = new AppDbContext(options);
-
-        Console.WriteLine("🔄 Running EF Core migrations...");
-        context.Database.Migrate();
-        Console.WriteLine("✅ Database migrated successfully");
-
-        // ---------- SAFE ADMIN SEED ----------
-        if (!context.Admins.Any())
+        var hasher = new PasswordHasher<Admin>();
+        ctx.Admins.Add(new Admin
         {
-            var hasher = new PasswordHasher<Admin>();
-            var admin = new Admin
-            {
-                Name = "admin",
-                PasswordHash = hasher.HashPassword(null!, "Admin123!")
-            };
-            context.Admins.Add(admin);
-            context.SaveChanges();
-            Console.WriteLine("✅ Default admin created");
-        }
-        else
-        {
-            Console.WriteLine("ℹ️ Admin already exists — skipping seed");
-        }
+            Name = "admin",
+            PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
+        });
+
+        ctx.SaveChanges();
+        Console.WriteLine("✅ Default admin created");
     }
-    catch (Exception ex)
+    else
     {
-        Console.WriteLine("❌ MIGRATION FAILED");
-        Console.WriteLine($"Error: {ex.Message}");
-
-        if (ex.InnerException != null)
-        {
-            Console.WriteLine("— Inner Exception —");
-            Console.WriteLine(ex.InnerException.Message);
-        }
-
-        // Don't throw - let app start anyway
-        Console.WriteLine("⚠️ App will continue without migrations");
+        Console.WriteLine("ℹ️ Admin already exists");
     }
 }
-else
-{
-    Console.WriteLine("⏭️ RUN_MIGRATIONS=false — skipping migrations");
-}
+
 #endregion
 
 app.Run();
+
+
+// =======================
+//  SUPABASE DATABASE_URL PARSER
+static string ConvertDatabaseUrl(string databaseUrl)
+{
+    var uri = new Uri(databaseUrl);
+
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var username = userInfo[0];
+    var password = userInfo.Length > 1 ? userInfo[1] : "";
+
+    return
+        $"Host={uri.Host};" +
+        $"Port={uri.Port};" +
+        $"Database={uri.AbsolutePath.TrimStart('/')};" +
+        $"Username={username};" +
+        $"Password={password};" +
+        $"Ssl Mode=Require;" +
+        $"Trust Server Certificate=true;" +
+        $"Pooling=true;";
+}

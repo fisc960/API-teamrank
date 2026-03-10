@@ -1,72 +1,70 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
-using System;
-using System.IO;
 
-namespace GemachApp.Data
+namespace GemachApp.Data;
+
+public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 {
-    public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
+    public AppDbContext CreateDbContext(string[] args)
     {
-        public AppDbContext CreateDbContext(string[] args)
+        // Build configuration
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile("appsettings.Local.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+
+        var dbProvider = configuration["DB_PROVIDER"] ?? "sqlserver";
+
+        if (dbProvider == "sqlserver")
         {
-            var config = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: true)
-                .AddJsonFile("appsettings.Local.json", optional: true)
-                .AddEnvironmentVariables()
-                .Build();
+            // LOCAL — SQL SERVER
+            var cs = configuration.GetConnectionString("SqlServerConnection");
+            if (string.IsNullOrWhiteSpace(cs))
+                throw new Exception("❌ SqlServerConnection missing in appsettings.json");
 
-            var options = new DbContextOptionsBuilder<AppDbContext>();
-
-            // Only PostgreSQL is supported
-            var provider =
-                Environment.GetEnvironmentVariable("DB_PROVIDER")
-                ?? config["DB_PROVIDER"]
-                ?? "postgres";
-
-            if (!provider.Equals("postgres", StringComparison.OrdinalIgnoreCase))
-                throw new Exception("Only PostgreSQL is supported");
-
-            // 🔐 IMPORTANT:
-            // EF CLI MUST use direct DB (DATABASE_URL_MIGRATIONS)
-            // Runtime may use pooler (DATABASE_URL)
-            var databaseUrl =
-                Environment.GetEnvironmentVariable("DATABASE_URL_MIGRATIONS")
-                ?? Environment.GetEnvironmentVariable("DATABASE_URL");
-
-            if (string.IsNullOrWhiteSpace(databaseUrl))
-                throw new Exception("DATABASE_URL_MIGRATIONS or DATABASE_URL is required");
-
-            // Convert postgres:// URL → ADO.NET connection string if needed
-            if (databaseUrl.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
-                databaseUrl.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+            optionsBuilder.UseSqlServer(cs, sql =>
             {
-                databaseUrl = ConvertPostgresUrl(databaseUrl);
-            }
-
-            options.UseNpgsql(databaseUrl, o =>
-            {
-                o.CommandTimeout(300); // long timeout for migrations
-                o.EnableRetryOnFailure(5);
+                sql.EnableRetryOnFailure(5);
+                sql.CommandTimeout(120);
             });
-
-            return new AppDbContext(options.Options);
         }
-
-        private static string ConvertPostgresUrl(string url)
+        else if (dbProvider == "postgres")
         {
-            var uri = new Uri(url);
-            var userInfo = uri.UserInfo.Split(':', 2);
+            // PRODUCTION — SUPABASE
+            var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+            if (string.IsNullOrWhiteSpace(databaseUrl))
+                throw new Exception("❌ DATABASE_URL missing");
 
-            return
-                $"Host={uri.Host};" +
-                $"Port={uri.Port};" +
-                $"Database={uri.AbsolutePath.TrimStart('/')};" +
-                $"Username={userInfo[0]};" +
-                $"Password={userInfo[1]};" +
-                $"SslMode=Require;" +
-                $"Trust Server Certificate=true;";
+            optionsBuilder.UseNpgsql(ConvertDatabaseUrl(databaseUrl), npgsql =>
+            {
+                npgsql.EnableRetryOnFailure(5);
+                npgsql.CommandTimeout(120);
+            });
         }
+
+        return new AppDbContext(optionsBuilder.Options);
+    }
+
+    private static string ConvertDatabaseUrl(string databaseUrl)
+    {
+        var uri = new Uri(databaseUrl);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var username = userInfo[0];
+        var password = userInfo.Length > 1 ? userInfo[1] : "";
+
+        return
+            $"Host={uri.Host};" +
+            $"Port={uri.Port};" +
+            $"Database={uri.AbsolutePath.TrimStart('/')};" +
+            $"Username={username};" +
+            $"Password={password};" +
+            $"Ssl Mode=Require;" +
+            $"Trust Server Certificate=true;" +
+            $"Pooling=true;";
     }
 }

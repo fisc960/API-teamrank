@@ -2,7 +2,7 @@
 
 namespace GemachApp.Data
 {
-    [Table("accounts")]
+   // [Table("accounts")]
     public class Account
     {
         public int AccountId { get; set; }

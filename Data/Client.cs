@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace GemachApp.Data
 {
 
-    [Table("clients")]
+    //[Table("clients")]
     public class Client
     {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

@@ -1,0 +1,44 @@
+[
+  {
+    "AccountId": 1,
+    "ClientId": 10,
+    "TotalAmount": 8000.00,
+    "UpdateBalDate": "0001-01-01T00:00:00"
+  },
+  {
+    "AccountId": 4,
+    "ClientId": 20,
+    "TotalAmount": 8795.00,
+    "UpdateBalDate": "2025-12-30T21:09:09.9010574"
+  },
+  {
+    "AccountId": 5,
+    "ClientId": 23,
+    "TotalAmount": 9600.00,
+    "UpdateBalDate": "2026-01-01T23:18:46.119916"
+  },
+  {
+    "AccountId": 6,
+    "ClientId": 17,
+    "TotalAmount": 26850.00,
+    "UpdateBalDate": "2025-11-19T00:09:36.9875808"
+  },
+  {
+    "AccountId": 7,
+    "ClientId": 25,
+    "TotalAmount": 2400.00,
+    "UpdateBalDate": "2025-05-18T20:28:59.2523075"
+  },
+  {
+    "AccountId": 8,
+    "ClientId": 24,
+    "TotalAmount": 150.00,
+    "UpdateBalDate": "2025-05-16T17:06:08.8033923"
+  },
+  {
+    "AccountId": 9,
+    "ClientId": 34,
+    "TotalAmount": 1650.00,
+    "UpdateBalDate": "2025-11-30T21:41:14.8851724"
+  }
+]

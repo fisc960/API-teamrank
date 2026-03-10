@@ -3,281 +3,241 @@ using System;
 using GemachApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace GemachApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260111235407_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260129015425_first")]
+    partial class first
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "6.0.36")
-                .HasAnnotation("Relational:MaxIdentifierLength", 63);
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
-            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
 
             modelBuilder.Entity("GemachApp.Data.Account", b =>
                 {
                     b.Property<int>("AccountId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("accountid");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("AccountId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AccountId"), 1L, 1);
 
                     b.Property<int>("ClientId")
-                        .HasColumnType("integer")
-                        .HasColumnName("clientid");
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("TotalAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("totalamount");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("UpdateBalDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updatebaldate");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("AccountId");
 
                     b.HasIndex("ClientId")
                         .IsUnique();
 
-                    b.ToTable("accounts");
+                    b.ToTable("Accounts");
                 });
 
             modelBuilder.Entity("GemachApp.Data.Admin", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("name");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("passwordhash");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("admins");
+                    b.ToTable("Admins");
                 });
 
             modelBuilder.Entity("GemachApp.Data.Agent", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
                     b.Property<string>("AgentName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("agentname");
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<DateTime>("AgentOpenDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("agentopendate");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("AgentPassword")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("agentpassword");
+                        .HasColumnType("nvarchar(40)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("agents");
+                    b.ToTable("Agents");
                 });
 
             modelBuilder.Entity("GemachApp.Data.Check", b =>
                 {
                     b.Property<int>("CheckId")
-                        .HasColumnType("integer")
-                        .HasColumnName("checkid");
+                        .HasColumnType("int");
 
                     b.Property<int>("AgentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("agentid");
+                        .HasColumnType("int");
 
                     b.Property<string>("AgentName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("agentname");
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime>("CheckIssuedDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("checkissueddate");
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("ClientId")
-                        .HasColumnType("integer")
-                        .HasColumnName("clientid");
+                        .HasColumnType("int");
 
                     b.Property<string>("ClientName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("clientname");
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("OrderTo")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("orderto");
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<decimal>("Sum")
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("sum");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("TransId")
-                        .HasColumnType("integer")
-                        .HasColumnName("transid");
+                        .HasColumnType("int");
 
                     b.HasKey("CheckId");
 
-                    b.ToTable("checks");
+                    b.ToTable("Checks");
                 });
 
             modelBuilder.Entity("GemachApp.Data.Client", b =>
                 {
                     b.Property<int>("ClientId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("clientid");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ClientId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ClientId"), 1L, 1);
 
                     b.Property<string>("Agent")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("agent");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ClientFirstName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("clientfirstname");
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<string>("ClientLastName")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("clientlastname");
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<DateTime>("ClientOpenDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("clientopendate");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("ClientPassword")
-                        .HasColumnType("text")
-                        .HasColumnName("clientpassword");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Comments")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("comments");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("email");
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<string>("Phonenumber")
                         .IsRequired()
                         .HasMaxLength(18)
-                        .HasColumnType("character varying(18)")
-                        .HasColumnName("phonenumber");
+                        .HasColumnType("nvarchar(18)");
 
                     b.Property<string>("SelectedPosition")
                         .IsRequired()
                         .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("selectedposition");
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<bool>("UpdateByEmail")
-                        .HasColumnType("boolean")
-                        .HasColumnName("updatebyemail");
+                        .HasColumnType("bit");
 
                     b.Property<bool>("Urav")
-                        .HasColumnType("boolean")
-                        .HasColumnName("urav");
+                        .HasColumnType("bit");
 
                     b.HasKey("ClientId");
 
-                    b.ToTable("clients");
+                    b.ToTable("Clients");
                 });
 
             modelBuilder.Entity("GemachApp.Data.Transaction", b =>
                 {
                     b.Property<int>("TransId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("transid");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TransId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TransId"), 1L, 1);
 
                     b.Property<int?>("AccountId")
-                        .HasColumnType("integer")
-                        .HasColumnName("accountid");
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("Added")
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("added");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Agent")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("agent");
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<int>("ClientId")
-                        .HasColumnType("integer")
-                        .HasColumnName("clientid");
+                        .HasColumnType("int");
 
                     b.Property<bool>("SendEmail")
-                        .HasColumnType("boolean")
-                        .HasColumnName("sendemail");
+                        .HasColumnType("bit");
 
                     b.Property<decimal?>("Subtracted")
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("subtracted");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal?>("TotalAdded")
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("totaladded");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal?>("TotalSubtracted")
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("totalsubtracted");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("TransDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("transdate");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("TransId");
 
@@ -285,61 +245,53 @@ namespace GemachApp.Migrations
 
                     b.HasIndex("ClientId");
 
-                    b.ToTable("transactions");
+                    b.ToTable("Transactions");
                 });
 
             modelBuilder.Entity("GemachApp.Data.UpdateLog", b =>
                 {
                     b.Property<int>("RecordId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("recordid");
+                        .HasColumnType("int");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RecordId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RecordId"), 1L, 1);
 
                     b.Property<string>("Agent")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("agent");
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ColumName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("columname");
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("ObjectId")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("objectid");
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("PrevVersion")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("prevversion");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<string>("TableName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("tablename");
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("timestamp");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("UpdatedVersion")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("updatedversion");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.HasKey("RecordId");
 
-                    b.ToTable("updates");
+                    b.ToTable("Updates");
                 });
 
             modelBuilder.Entity("GemachApp.Data.Account", b =>

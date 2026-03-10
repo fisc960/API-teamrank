@@ -1,0 +1,32 @@
+[
+  {
+    "Id": 2,
+    "AgentName": "\u05DC\u05D5\u05D8",
+    "AgentPassword": "changed",
+    "AgentOpenDate": "0001-01-01T00:00:00"
+  },
+  {
+    "Id": 3,
+    "AgentName": "govy",
+    "AgentPassword": "549849849",
+    "AgentOpenDate": "0001-01-01T00:00:00"
+  },
+  {
+    "Id": 5,
+    "AgentName": "obama",
+    "AgentPassword": "president",
+    "AgentOpenDate": "0001-01-01T00:00:00"
+  },
+  {
+    "Id": 6,
+    "AgentName": "\u05D1\u05EA\u05D9\u0027 \u05D1\u05EA \u05E4\u05E8\u05E2\u05D4",
+    "AgentPassword": "\u05D4\u05E6\u05D9\u05DC\u05D0\u05EA\u05DE\u05E9\u05D4",
+    "AgentOpenDate": "0001-01-01T00:00:00"
+  },
+  {
+    "Id": 7,
+    "AgentName": "adems",
+    "AgentPassword": "mayernyc",
+    "AgentOpenDate": "2026-01-12T01:39:07.5686025"
+  }
+]

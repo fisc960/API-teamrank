@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GemachApp.Data
 {
-    [Table("checks")]
+   // [Table("checks")]
     public class Check
     {
         [Key]
