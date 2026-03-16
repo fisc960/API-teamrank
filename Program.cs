@@ -82,18 +82,17 @@ builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("CorsPolicy", policy =>
         policy
-            /*.WithOrigins(
+            .WithOrigins(
                 "https://team-rank-banking.vercel.app",
+                "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app", // Add this
                 "http://localhost:5173",
                 "http://localhost:3000"
-            )*/
-            .AllowAnyOrigin()  // Temporarily allow all origins for testing
+            )
             .AllowAnyHeader()
             .AllowAnyMethod()
-           // .AllowCredentials()
+            .AllowCredentials()
     );
 });
-
 #endregion
 
 #region SERVICES
@@ -112,46 +111,39 @@ app.MapGet("/health", () => Results.Ok("OK"));
 #endregion
 
 
-#region MIGRATIONS + SAFE ADMIN SEED (Background task)
-_ = Task.Run(async () =>
+#region MIGRATIONS + SAFE ADMIN SEED - RUN BEFORE STARTING APP
+try
 {
-    try
+    using var scope = app.Services.CreateScope();
+    var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    Console.WriteLine("🔄 Applying migrations...");
+    ctx.Database.Migrate();
+    Console.WriteLine("✅ Database ready");
+
+    if (!ctx.Admins.Any())
     {
-        await Task.Delay(3000); // Give app time to start
-
-        Console.WriteLine("🔄 Starting migration task...");
-
-        using var scope = app.Services.CreateScope();
-        var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        Console.WriteLine("🔄 Applying migrations...");
-        await ctx.Database.MigrateAsync();
-        Console.WriteLine("✅ Database migrations applied");
-
-        Console.WriteLine("🔍 Checking for existing admin...");
-        var adminExists = await ctx.Admins.AnyAsync();
-
-        if (!adminExists)
+        Console.WriteLine("🌱 Seeding admin...");
+        var hasher = new PasswordHasher<Admin>();
+        ctx.Admins.Add(new Admin
         {
-            Console.WriteLine("🌱 Seeding admin...");
-            var hasher = new PasswordHasher<Admin>();
-            ctx.Admins.Add(new Admin
-            {
-                Name = "admin",
-                PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
-            });
-            await ctx.SaveChangesAsync();
-            Console.WriteLine("✅ Default admin created");
-        }
-
-        Console.WriteLine("🎉 Migration task completed!");
+            Name = "admin",
+            PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
+        });
+        ctx.SaveChanges();
+        Console.WriteLine("✅ Default admin created");
     }
-    catch (Exception ex)
+    else
     {
-        Console.WriteLine($"❌ MIGRATION ERROR: {ex.Message}");
-        Console.WriteLine($"Stack: {ex.StackTrace}");
+        Console.WriteLine("ℹ️ Admin already exists");
     }
-});
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"❌ MIGRATION FAILED: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    throw; // Re-throw so the app doesn't start with a broken database
+}
 #endregion
 
 app.Run();
