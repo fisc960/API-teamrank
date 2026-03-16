@@ -118,32 +118,46 @@ app.RunAsync();
 #region MIGRATIONS + SAFE ADMIN SEED (Run after app starts)
 Task.Run(async () =>
 {
-    await Task.Delay(1000); // Give app a second to start
-
-    using var scope = app.Services.CreateScope();
-    var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    Console.WriteLine("🔄 Applying migrations...");
-    await ctx.Database.MigrateAsync();
-    Console.WriteLine("✅ Database ready");
-
-    if (!await ctx.Admins.AnyAsync())
+    try
     {
-        Console.WriteLine("🌱 Seeding admin...");
+        await Task.Delay(2000); // Give app time to start
 
-        var hasher = new PasswordHasher<Admin>();
-        ctx.Admins.Add(new Admin
+        Console.WriteLine("🔄 Starting migration task...");
+
+        using var scope = app.Services.CreateScope();
+        var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        Console.WriteLine("🔄 Applying migrations...");
+        await ctx.Database.MigrateAsync();
+        Console.WriteLine("✅ Database migrations applied");
+
+        Console.WriteLine("🔍 Checking for existing admin...");
+        var adminExists = await ctx.Admins.AnyAsync();
+        Console.WriteLine($"Admin exists: {adminExists}");
+
+        if (!adminExists)
         {
-            Name = "admin",
-            PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
-        });
+            Console.WriteLine("🌱 Seeding admin...");
+            var hasher = new PasswordHasher<Admin>();
+            ctx.Admins.Add(new Admin
+            {
+                Name = "admin",
+                PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
+            });
+            await ctx.SaveChangesAsync();
+            Console.WriteLine("✅ Default admin created");
+        }
 
-        await ctx.SaveChangesAsync();
-        Console.WriteLine("✅ Default admin created");
+        Console.WriteLine("🎉 Migration task completed successfully!");
     }
-    else
+    catch (Exception ex)
     {
-        Console.WriteLine("ℹ️ Admin already exists");
+        Console.WriteLine($"❌ MIGRATION TASK FAILED: {ex.Message}");
+        Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        if (ex.InnerException != null)
+        {
+            Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+        }
     }
 });
 #endregion
