@@ -112,15 +112,12 @@ app.MapGet("/health", () => Results.Ok("OK"));
 #endregion
 
 
-// START THE APP FIRST (so Render detects the port is open)
-app.RunAsync();
-
-#region MIGRATIONS + SAFE ADMIN SEED (Run after app starts)
-Task.Run(async () =>
+#region MIGRATIONS + SAFE ADMIN SEED (Background task)
+_ = Task.Run(async () =>
 {
     try
     {
-        await Task.Delay(2000); // Give app time to start
+        await Task.Delay(3000); // Give app time to start
 
         Console.WriteLine("🔄 Starting migration task...");
 
@@ -133,7 +130,6 @@ Task.Run(async () =>
 
         Console.WriteLine("🔍 Checking for existing admin...");
         var adminExists = await ctx.Admins.AnyAsync();
-        Console.WriteLine($"Admin exists: {adminExists}");
 
         if (!adminExists)
         {
@@ -148,21 +144,15 @@ Task.Run(async () =>
             Console.WriteLine("✅ Default admin created");
         }
 
-        Console.WriteLine("🎉 Migration task completed successfully!");
+        Console.WriteLine("🎉 Migration task completed!");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"❌ MIGRATION TASK FAILED: {ex.Message}");
-        Console.WriteLine($"Stack trace: {ex.StackTrace}");
-        if (ex.InnerException != null)
-        {
-            Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-        }
+        Console.WriteLine($"❌ MIGRATION ERROR: {ex.Message}");
+        Console.WriteLine($"Stack: {ex.StackTrace}");
     }
 });
 #endregion
-
-await app.WaitForShutdownAsync(); // Wait here instead of app.Run()
 
 app.Run();
 
