@@ -112,17 +112,22 @@ app.MapGet("/health", () => Results.Ok("OK"));
 #endregion
 
 
-#region MIGRATIONS + SAFE ADMIN SEED
+// START THE APP FIRST (so Render detects the port is open)
+app.RunAsync();
 
-using (var scope = app.Services.CreateScope())
+#region MIGRATIONS + SAFE ADMIN SEED (Run after app starts)
+Task.Run(async () =>
 {
+    await Task.Delay(1000); // Give app a second to start
+
+    using var scope = app.Services.CreateScope();
     var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
     Console.WriteLine("🔄 Applying migrations...");
-    ctx.Database.Migrate();
+    await ctx.Database.MigrateAsync();
     Console.WriteLine("✅ Database ready");
 
-    if (!ctx.Admins.Any())
+    if (!await ctx.Admins.AnyAsync())
     {
         Console.WriteLine("🌱 Seeding admin...");
 
@@ -133,16 +138,17 @@ using (var scope = app.Services.CreateScope())
             PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
         });
 
-        ctx.SaveChanges();
+        await ctx.SaveChangesAsync();
         Console.WriteLine("✅ Default admin created");
     }
     else
     {
         Console.WriteLine("ℹ️ Admin already exists");
     }
-}
-
+});
 #endregion
+
+await app.WaitForShutdownAsync(); // Wait here instead of app.Run()
 
 app.Run();
 
