@@ -112,14 +112,14 @@ app.MapGet("/health", () => Results.Ok("OK"));
 
 
 #region MIGRATIONS + SAFE ADMIN SEED - RUN BEFORE STARTING APP
-/*try
+try
 {
     using var scope = app.Services.CreateScope();
     var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    Console.WriteLine("🔄 Applying migrations...");
+    /*Console.WriteLine("🔄 Applying migrations...");
     ctx.Database.Migrate();
-    Console.WriteLine("✅ Database ready");
+    Console.WriteLine("✅ Database ready");*/
 
     if (!ctx.Admins.Any())
     {
@@ -143,7 +143,7 @@ catch (Exception ex)
     Console.WriteLine($"❌ MIGRATION FAILED: {ex.Message}");
     Console.WriteLine($"Stack trace: {ex.StackTrace}");
     throw; // Re-throw so the app doesn't start with a broken database
-}*/
+}
 #endregion
 
 app.Run();
