@@ -110,7 +110,53 @@ app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
 #endregion
 
+#region MIGRATIONS + TEMP ADMIN RESET (ONE-TIME USE)
+try
+{
+    using var scope = app.Services.CreateScope();
+    var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+    Console.WriteLine("🔄 Applying migrations...");
+    ctx.Database.Migrate();
+    Console.WriteLine("✅ Database ready");
+
+    Console.WriteLine("⚠️ RESETTING ADMINS TABLE (TEMP)");
+
+    // 🔥 DELETE ALL ADMINS
+    var existingAdmins = ctx.Admins.ToList();
+    if (existingAdmins.Any())
+    {
+        ctx.Admins.RemoveRange(existingAdmins);
+        ctx.SaveChanges();
+        Console.WriteLine("🗑️ All admins deleted");
+    }
+
+    // ✅ CREATE FRESH ADMIN
+    Console.WriteLine("🌱 Creating fresh admin...");
+
+    var hasher = new PasswordHasher<Admin>();
+
+    var admin = new Admin
+    {
+        Name = "admin",
+        PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
+    };
+
+    ctx.Admins.Add(admin);
+    ctx.SaveChanges();
+
+    Console.WriteLine("✅ Admin reset complete");
+    Console.WriteLine("🔐 Login with: admin / Admin123!");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"❌ MIGRATION FAILED: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    throw;
+}
+#endregion
+
+/*
 #region MIGRATIONS + SAFE ADMIN SEED - RUN BEFORE STARTING APP
 try
 {
@@ -119,9 +165,9 @@ try
 
     /*Console.WriteLine("🔄 Applying migrations...");
     ctx.Database.Migrate();
-    Console.WriteLine("✅ Database ready");*/
+    Console.WriteLine("✅ Database ready");*//*
 
-    if (!ctx.Admins.Any())
+if (!ctx.Admins.Any())
     {
         Console.WriteLine("🌱 Seeding admin...");
         var hasher = new PasswordHasher<Admin>();
@@ -145,6 +191,7 @@ catch (Exception ex)
     throw; // Re-throw so the app doesn't start with a broken database
 }
 #endregion
+*/
 
 app.Run();
 
