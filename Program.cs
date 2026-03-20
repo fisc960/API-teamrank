@@ -121,29 +121,30 @@ app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
 #endregion
 
-#region TEMP SAFE STARTUP (NO MIGRATION)
+#region FORCE ADMIN RESET (TEMP)
 try
 {
     using var scope = app.Services.CreateScope();
     var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    Console.WriteLine("⚠️ TEMP MODE: Skipping migrations");
+    Console.WriteLine("⚠️ FORCE RESET ADMIN");
 
-    if (!ctx.Admins.Any())
+    var hasher = new PasswordHasher<Admin>();
+
+    // 🔥 DELETE ALL ADMINS
+    ctx.Admins.RemoveRange(ctx.Admins);
+    ctx.SaveChanges();
+
+    // 🔥 CREATE NEW ADMIN
+    ctx.Admins.Add(new Admin
     {
-        Console.WriteLine("🌱 Seeding admin...");
+        Name = "admin",
+        PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
+    });
 
-        var hasher = new PasswordHasher<Admin>();
+    ctx.SaveChanges();
 
-        ctx.Admins.Add(new Admin
-        {
-            Name = "admin",
-            PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
-        });
-
-        ctx.SaveChanges();
-        Console.WriteLine("✅ Admin created");
-    }
+    Console.WriteLine("✅ Admin RESET: admin / Admin123!");
 }
 catch (Exception ex)
 {
