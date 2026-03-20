@@ -82,6 +82,17 @@ builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("CorsPolicy", policy =>
         policy
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+    );
+});
+
+
+/*builder.Services.AddCors(opt =>
+{
+    opt.AddPolicy("CorsPolicy", policy =>
+        policy
             .WithOrigins(
                 "https://team-rank-banking.vercel.app",
                 "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app", // Add this
@@ -92,7 +103,7 @@ builder.Services.AddCors(opt =>
             .AllowAnyMethod()
             .AllowCredentials()
     );
-});
+});*/
 #endregion
 
 #region SERVICES
@@ -110,51 +121,37 @@ app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
 #endregion
 
-#region MIGRATIONS + TEMP ADMIN RESET (ONE-TIME USE)
+#region TEMP SAFE STARTUP (NO MIGRATION)
 try
 {
     using var scope = app.Services.CreateScope();
     var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    Console.WriteLine("🔄 Applying migrations...");
-    ctx.Database.Migrate();
-    Console.WriteLine("✅ Database ready");
+    Console.WriteLine("⚠️ TEMP MODE: Skipping migrations");
 
-    Console.WriteLine("⚠️ RESETTING ADMINS TABLE (TEMP)");
-
-    // 🔥 DELETE ALL ADMINS
-    var existingAdmins = ctx.Admins.ToList();
-    if (existingAdmins.Any())
+    if (!ctx.Admins.Any())
     {
-        ctx.Admins.RemoveRange(existingAdmins);
+        Console.WriteLine("🌱 Seeding admin...");
+
+        var hasher = new PasswordHasher<Admin>();
+
+        ctx.Admins.Add(new Admin
+        {
+            Name = "admin",
+            PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
+        });
+
         ctx.SaveChanges();
-        Console.WriteLine("🗑️ All admins deleted");
+        Console.WriteLine("✅ Admin created");
     }
-
-    // ✅ CREATE FRESH ADMIN
-    Console.WriteLine("🌱 Creating fresh admin...");
-
-    var hasher = new PasswordHasher<Admin>();
-
-    var admin = new Admin
-    {
-        Name = "admin",
-        PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
-    };
-
-    ctx.Admins.Add(admin);
-    ctx.SaveChanges();
-
-    Console.WriteLine("✅ Admin reset complete");
-    Console.WriteLine("🔐 Login with: admin / Admin123!");
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"❌ MIGRATION FAILED: {ex.Message}");
-    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    Console.WriteLine($"❌ STARTUP FAILED: {ex.Message}");
     throw;
 }
 #endregion
+
 
 /*
 #region MIGRATIONS + SAFE ADMIN SEED - RUN BEFORE STARTING APP
