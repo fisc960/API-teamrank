@@ -18,12 +18,17 @@ Console.WriteLine($"🧠 Environment = {env}");
 #endregion
 
 #region PORT (Render / Local / IIS safe)
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+/*var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.ConfigureKestrel(o =>
 {
     o.ListenAnyIP(int.Parse(port));
+});*/
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
+    serverOptions.ListenAnyIP(int.Parse(port));
+    Console.WriteLine($"🌐 Listening on port {port}");
 });
-Console.WriteLine($"🌐 Listening on port {port}");
 #endregion
 
 #region DATABASE SELECTION (SQL Server vs Supabase)
