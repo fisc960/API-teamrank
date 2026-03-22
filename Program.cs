@@ -136,11 +136,14 @@ try
 
     var hasher = new PasswordHasher<Admin>();
 
-    // 🔥 DELETE ALL ADMINS
-    ctx.Admins.RemoveRange(ctx.Admins);
-    ctx.SaveChanges();
+    var existingAdmins = ctx.Admins.ToList();
 
-    // 🔥 CREATE NEW ADMIN
+    if (existingAdmins.Any())
+    {
+        ctx.Admins.RemoveRange(existingAdmins);
+        ctx.SaveChanges();
+    }
+
     ctx.Admins.Add(new Admin
     {
         Name = "admin",
@@ -153,8 +156,8 @@ try
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"❌ STARTUP FAILED: {ex.Message}");
-    throw;
+    Console.WriteLine($"❌ ADMIN RESET FAILED: {ex.Message}");
+    // ❗ DO NOT THROW → let app continue
 }
 #endregion
 
