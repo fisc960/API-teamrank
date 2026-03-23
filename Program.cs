@@ -1,11 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using GemachApp.Data;
-using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
-#region CONFIG LOADING (VERY IMPORTANT)
+#region CONFIG LOADING
 builder.Configuration
     .AddJsonFile("appsettings.json", optional: false)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
@@ -17,12 +16,7 @@ var env = builder.Environment.EnvironmentName;
 Console.WriteLine($"🧠 Environment = {env}");
 #endregion
 
-#region PORT (Render / Local / IIS safe)
-/*var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.ConfigureKestrel(o =>
-{
-    o.ListenAnyIP(int.Parse(port));
-});*/
+#region PORT
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
     var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
@@ -31,8 +25,7 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 });
 #endregion
 
-#region DATABASE SELECTION (SQL Server vs Supabase)
-
+#region DATABASE SELECTION
 var dbProvider = builder.Configuration["DB_PROVIDER"] ?? "sqlserver";
 Console.WriteLine($"🗄️ DB_PROVIDER = {dbProvider}");
 
@@ -40,10 +33,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 {
     if (dbProvider == "sqlserver")
     {
-        // =========================
-        // LOCAL — SQL SERVER
         Console.WriteLine("💻 Using SQL Server");
-
         var cs = builder.Configuration.GetConnectionString("SqlServerConnection");
         if (string.IsNullOrWhiteSpace(cs))
             throw new Exception("❌ SqlServerConnection missing");
@@ -56,8 +46,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
     else if (dbProvider == "postgres")
     {
-        // =========================
-        // PRODUCTION — SUPABASE
         Console.WriteLine("📦 Using PostgreSQL (Supabase)");
 
         if (builder.Environment.IsDevelopment())
@@ -70,7 +58,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(ConvertDatabaseUrl(databaseUrl), npgsql =>
         {
             npgsql.EnableRetryOnFailure(5);
-            npgsql.CommandTimeout(120);
+            npgsql.CommandTimeout(30); // ✅ reduced from 120 — seeding should be fast
         });
     }
     else
@@ -78,29 +66,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         throw new Exception($"❌ Invalid DB_PROVIDER: {dbProvider}");
     }
 });
-
 #endregion
 
-#region CORS (Vercel + Local)
-/*
-builder.Services.AddCors(opt =>
-{
-    opt.AddPolicy("CorsPolicy", policy =>
-        policy
-            .AllowAnyOrigin()
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-    );
-});
-*/
-
+#region CORS
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("CorsPolicy", policy =>
         policy
             .WithOrigins(
                 "https://team-rank-banking.vercel.app",
-                "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app", // Add this
+                "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
                 "http://localhost:5173",
                 "http://localhost:3000"
             )
@@ -126,88 +101,62 @@ app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
 #endregion
 
-#region FORCE ADMIN RESET (TEMP)
-try
+// ✅ FIX: Run admin seeding in a background task AFTER app starts listening.
+//    The previous code ran BEFORE app.Run(), blocking the port from opening.
+//    Render requires the port to open within ~60s — a hanging DB call kills the deploy.
+_ = Task.Run(async () =>
 {
-    using var scope = app.Services.CreateScope();
-    var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    // Give the server a moment to fully start and open its port first
+    await Task.Delay(TimeSpan.FromSeconds(3));
 
-    Console.WriteLine("⚠️ FORCE RESET ADMIN");
+    Console.WriteLine("⚠️ Starting admin reset (background)...");
 
-    var hasher = new PasswordHasher<Admin>();
+    // Use a cancellation token so a hung DB call doesn't hang forever
+    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
 
-    var existingAdmins = ctx.Admins.ToList();
-
-    if (existingAdmins.Any())
+    try
     {
-        ctx.Admins.RemoveRange(existingAdmins);
-        ctx.SaveChanges();
-    }
-
-    ctx.Admins.Add(new Admin
-    {
-        Name = "admin",
-        PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
-    });
-
-    ctx.SaveChanges();
-
-    Console.WriteLine("✅ Admin RESET: admin / Admin123!");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"❌ ADMIN RESET FAILED: {ex.Message}");
-    // ❗ DO NOT THROW → let app continue
-}
-#endregion
-
-
-/*
-#region MIGRATIONS + SAFE ADMIN SEED - RUN BEFORE STARTING APP
-try
-{
-    using var scope = app.Services.CreateScope();
-    var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    /*Console.WriteLine("🔄 Applying migrations...");
-    ctx.Database.Migrate();
-    Console.WriteLine("✅ Database ready");*//*
-
-if (!ctx.Admins.Any())
-    {
-        Console.WriteLine("🌱 Seeding admin...");
+        using var scope = app.Services.CreateScope();
+        var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var hasher = new PasswordHasher<Admin>();
+
+        // ✅ Use async EF methods + cancellation token throughout
+        var existingAdmins = await ctx.Admins.ToListAsync(cts.Token);
+
+        if (existingAdmins.Any())
+        {
+            ctx.Admins.RemoveRange(existingAdmins);
+            await ctx.SaveChangesAsync(cts.Token);
+        }
+
         ctx.Admins.Add(new Admin
         {
             Name = "admin",
             PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
         });
-        ctx.SaveChanges();
-        Console.WriteLine("✅ Default admin created");
+
+        await ctx.SaveChangesAsync(cts.Token);
+        Console.WriteLine("✅ Admin reset complete: admin / Admin123!");
     }
-    else
+    catch (OperationCanceledException)
     {
-        Console.WriteLine("ℹ️ Admin already exists");
+        // ✅ Timeout hit — log it but the app keeps running normally
+        Console.WriteLine("⏱️ Admin reset timed out after 25s — app continues running.");
     }
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"❌ MIGRATION FAILED: {ex.Message}");
-    Console.WriteLine($"Stack trace: {ex.StackTrace}");
-    throw; // Re-throw so the app doesn't start with a broken database
-}
-#endregion
-*/
+    catch (Exception ex)
+    {
+        // ✅ Any other DB error — log it but never crash the running app
+        Console.WriteLine($"❌ Admin reset failed: {ex.Message}");
+    }
+});
 
-app.Run();
-
+app.Run(); // ✅ This now runs immediately — port opens, Render is happy
 
 // =======================
-//  SUPABASE DATABASE_URL PARSER
+// SUPABASE DATABASE_URL PARSER
 static string ConvertDatabaseUrl(string databaseUrl)
 {
     var uri = new Uri(databaseUrl);
-
     var userInfo = uri.UserInfo.Split(':', 2);
     var username = userInfo[0];
     var password = userInfo.Length > 1 ? userInfo[1] : "";
