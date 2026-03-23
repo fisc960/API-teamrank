@@ -82,7 +82,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 #endregion
 
 #region CORS (Vercel + Local)
-
+/*
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("CorsPolicy", policy =>
@@ -92,9 +92,9 @@ builder.Services.AddCors(opt =>
             .AllowAnyMethod()
     );
 });
+*/
 
-
-/*builder.Services.AddCors(opt =>
+builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("CorsPolicy", policy =>
         policy
@@ -108,7 +108,7 @@ builder.Services.AddCors(opt =>
             .AllowAnyMethod()
             .AllowCredentials()
     );
-});*/
+});
 #endregion
 
 #region SERVICES
