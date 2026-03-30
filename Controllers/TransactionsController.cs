@@ -1,9 +1,7 @@
 ﻿
-
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GemachApp.Data;
-//using GemachApp.Models;
 
 namespace GemachApp.Controllers
 {
@@ -20,7 +18,6 @@ namespace GemachApp.Controllers
 
         // =========================================================
         // PROCESS TRANSACTION
-        // =========================================================
         [HttpPost("ProcessTransaction")]
         public async Task<IActionResult> ProcessTransaction([FromBody] TransactionRequest request)
         {
@@ -40,7 +37,7 @@ namespace GemachApp.Controllers
 
                 try
                 {
-                    // 1️⃣ Validate client
+                    //  Validate client
                     var client = await _context.Clients.FindAsync(request.ClientId);
                     if (client == null)
                     {
@@ -48,7 +45,7 @@ namespace GemachApp.Controllers
                         return;
                     }
 
-                    // 2️⃣ Get or create account
+                    //Get or create account
                     var account = await _context.Accounts
                         .FirstOrDefaultAsync(a => a.ClientId == request.ClientId);
 
@@ -60,12 +57,11 @@ namespace GemachApp.Controllers
                             TotalAmount = 0m,
                             UpdateBalDate = DateTime.UtcNow
                         };
-
                         _context.Accounts.Add(account);
                         await _context.SaveChangesAsync();
                     }
 
-                    // 3️⃣ Calculate new balance safely
+                    //  Calculate new balance
                     decimal add = request.Added ?? 0m;
                     decimal sub = request.Subtracted ?? 0m;
                     decimal currentBalance = account.TotalAmount ?? 0m;
@@ -73,24 +69,20 @@ namespace GemachApp.Controllers
 
                     if (newBalance < 0)
                     {
-                        result = BadRequest("Transaction would result in negative balance");
+                        result = BadRequest(new { message = "Transaction would result in negative balance" });
                         return;
                     }
 
-                    // 4️⃣ Calculate running totals
+                    // Calculate running totals
                     var totals = await _context.Transactions
                         .Where(t => t.ClientId == request.ClientId)
-                        .Select(t => new
-                        {
-                            Added = t.Added ?? 0m,
-                            Subtracted = t.Subtracted ?? 0m
-                        })
+                        .Select(t => new { Added = t.Added ?? 0m, Subtracted = t.Subtracted ?? 0m })
                         .ToListAsync();
 
                     decimal totalAdded = totals.Sum(t => t.Added) + add;
                     decimal totalSubtracted = totals.Sum(t => t.Subtracted) + sub;
 
-                    // 5️⃣ Create transaction
+                    //  Create transaction record
                     var transaction = new Transaction
                     {
                         ClientId = request.ClientId,
@@ -104,7 +96,7 @@ namespace GemachApp.Controllers
 
                     _context.Transactions.Add(transaction);
 
-                    // 6️⃣ Update account
+                    // Update account balance
                     account.TotalAmount = newBalance;
                     account.UpdateBalDate = DateTime.UtcNow;
 
@@ -114,15 +106,15 @@ namespace GemachApp.Controllers
                     result = Ok(new
                     {
                         message = "Transaction processed successfully",
-                        transactionId = transaction.TransId,
-                        balance = newBalance
+                        transactionId = transaction.TransId,  //  matches frontend txData.transactionId
+                        updatedBalance = newBalance            //  matches frontend data.updatedBalance
                     });
                 }
                 catch (Exception ex)
                 {
                     await tx.RollbackAsync();
                     Console.Error.WriteLine(ex);
-                    result = StatusCode(500, "Transaction failed");
+                    result = StatusCode(500, new { message = "Transaction failed", detail = ex.Message });
                 }
             });
 
@@ -131,7 +123,6 @@ namespace GemachApp.Controllers
 
         // =========================================================
         // GET TRANSACTIONS BY CLIENT
-        // =========================================================
         [HttpGet("GetTransactionsByClient/{clientId}")]
         public async Task<IActionResult> GetTransactionsByClient(int clientId)
         {
@@ -145,7 +136,6 @@ namespace GemachApp.Controllers
 
         // =========================================================
         // DELETE TRANSACTION
-        // =========================================================
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTransaction(int id)
         {
@@ -198,20 +188,18 @@ namespace GemachApp.Controllers
             return result;
         }
 
+        // =========================================================
+        // REQUEST MODEL
         public class TransactionRequest
         {
             public int ClientId { get; set; }
             public decimal? Added { get; set; }
             public decimal? Subtracted { get; set; }
             public string? Agent { get; set; }
+            public bool SendEmail { get; set; }  // frontend always sends this field
         }
-
-
     }
 }
-
-
-
 
 
 

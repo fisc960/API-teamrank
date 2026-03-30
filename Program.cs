@@ -58,7 +58,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(ConvertDatabaseUrl(databaseUrl), npgsql =>
         {
             npgsql.EnableRetryOnFailure(5);
-            npgsql.CommandTimeout(30); // ✅ reduced from 120 — seeding should be fast
+            npgsql.CommandTimeout(30);
         });
     }
     else
@@ -93,36 +93,50 @@ builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
-#region MIDDLEWARE
+#region MIDDLEWARE — ORDER MATTERS
+
+// Global exception handler MUST come first in the pipeline.
+//    When a controller throws an unhandled exception, ASP.NET resets the
+//    response — stripping any CORS headers already written — which makes the
+//    browser report a CORS error instead of the real 500.
+//    Catching here before UseCors ensures we write a clean JSON error response
+//    and UseCors can still attach its headers on the way out.
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            message = "An unexpected server error occurred.",
+            status = 500
+        });
+    });
+});
+
 app.UseRouting();
 app.UseCors("CorsPolicy");
 app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
+
 #endregion
 
-// ✅ FIX: Run admin seeding in a background task AFTER app starts listening.
-//    The previous code ran BEFORE app.Run(), blocking the port from opening.
-//    Render requires the port to open within ~60s — a hanging DB call kills the deploy.
+//  Admin seeding runs in background — never blocks port from opening
 _ = Task.Run(async () =>
 {
-    // Give the server a moment to fully start and open its port first
     await Task.Delay(TimeSpan.FromSeconds(3));
-
     Console.WriteLine("⚠️ Starting admin reset (background)...");
 
-    // Use a cancellation token so a hung DB call doesn't hang forever
     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
-
     try
     {
         using var scope = app.Services.CreateScope();
         var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var hasher = new PasswordHasher<Admin>();
 
-        // ✅ Use async EF methods + cancellation token throughout
         var existingAdmins = await ctx.Admins.ToListAsync(cts.Token);
-
         if (existingAdmins.Any())
         {
             ctx.Admins.RemoveRange(existingAdmins);
@@ -140,17 +154,15 @@ _ = Task.Run(async () =>
     }
     catch (OperationCanceledException)
     {
-        // ✅ Timeout hit — log it but the app keeps running normally
         Console.WriteLine("⏱️ Admin reset timed out after 25s — app continues running.");
     }
     catch (Exception ex)
     {
-        // ✅ Any other DB error — log it but never crash the running app
         Console.WriteLine($"❌ Admin reset failed: {ex.Message}");
     }
 });
 
-app.Run(); // ✅ This now runs immediately — port opens, Render is happy
+app.Run();
 
 // =======================
 // SUPABASE DATABASE_URL PARSER
