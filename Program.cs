@@ -146,7 +146,7 @@ app.MapGet("/db-ping", async (AppDbContext ctx) =>
 #endregion
 
 //  Admin seeding runs in background — never blocks port from opening
-_ = Task.Run(async () =>
+/*_ = Task.Run(async () =>
 {
     await Task.Delay(TimeSpan.FromSeconds(3));
     Console.WriteLine("⚠️ Starting admin reset (background)...");
@@ -181,6 +181,32 @@ _ = Task.Run(async () =>
     catch (Exception ex)
     {
         Console.WriteLine($"❌ Admin reset failed: {ex.Message}");
+    }
+});*/
+
+app.MapPost("/admin/reset-admin", async (AppDbContext ctx) =>
+{
+    try
+    {
+        var hasher = new PasswordHasher<Admin>();
+
+        var existingAdmins = await ctx.Admins.ToListAsync();
+        if (existingAdmins.Any())
+        {
+            ctx.Admins.RemoveRange(existingAdmins);
+            await ctx.SaveChangesAsync();
+        }
+
+        var admin = new Admin { Name = "admin" };
+        admin.PasswordHash = hasher.HashPassword(admin, "Admin123!");
+        ctx.Admins.Add(admin);
+        await ctx.SaveChangesAsync();
+
+        return Results.Ok(new { message = "Admin reset successfully! Login: admin / Admin123!" });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"Admin reset failed: {ex.Message}");
     }
 });
 
