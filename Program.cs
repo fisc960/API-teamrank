@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using GemachApp.Data;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,7 +59,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(ConvertDatabaseUrl(databaseUrl), npgsql =>
         {
             npgsql.EnableRetryOnFailure(5);
-            npgsql.CommandTimeout(30);
+            npgsql.CommandTimeout(120);
         });
     }
     else
@@ -77,6 +78,7 @@ builder.Services.AddCors(opt =>
                 "https://team-rank-banking.vercel.app",
                 "https://team-rank-banking-git-main-mr-fischs-projects.vercel.app",
                 "http://localhost:5173",
+                 "http://localhost:5174",
                 "http://localhost:3000"
             )
             .AllowAnyHeader()
@@ -121,6 +123,26 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
 
+// DB keep-alive ping - touches Supabase to prevent auto-pause
+// Point your cron-job.org (or similar) pinger at this URL every ~10 minutes
+app.MapGet("/db-ping", async (AppDbContext ctx) =>
+{
+    try
+    {
+        var canConnect = await ctx.Database.CanConnectAsync();
+        Console.WriteLine($"🏓 DB ping: {(canConnect ? "alive" : "unreachable")} at {DateTime.UtcNow}");
+        return Results.Ok(new
+        {
+            status = canConnect ? "alive" : "unreachable",
+            timestamp = DateTime.UtcNow
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ DB ping failed: {ex.Message}");
+        return Results.Problem($"DB ping failed: {ex.Message}");
+    }
+});
 #endregion
 
 //  Admin seeding runs in background — never blocks port from opening

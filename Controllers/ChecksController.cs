@@ -32,8 +32,20 @@ namespace GemachApp.Controllers
                 if (check.Sum <= 0)
                     return BadRequest("Sum must be greater than zero");
 
-                if (await _context.Checks.AnyAsync(c => c.CheckId == check.CheckId))
-                    return BadRequest($"Check number {check.CheckId} already exists");
+                /*if (await _context.Checks.AnyAsync(c => c.CheckId == check.CheckId))
+                    return BadRequest($"Check number {check.CheckId} already exists");*/
+
+                var lastCheckNumber = await _context.Checks
+     .OrderByDescending(c => c.CheckId)
+     .Select(c => c.CheckId)
+     .FirstOrDefaultAsync();
+
+                var nextNumber = lastCheckNumber == 0
+                    ? 1000
+                    : lastCheckNumber + 1;
+
+                // Ignore whatever frontend sends
+                check.CheckId = nextNumber;
 
                 check.CheckIssuedDate = DateTime.UtcNow;
 
@@ -112,6 +124,30 @@ namespace GemachApp.Controllers
                 .ToListAsync();
 
             return Ok(data);
+        }
+
+        // NEXT AVAILABLE CHECK NUMBER
+        [HttpGet("next-number")]
+        public async Task<IActionResult> GetNextCheckNumber()
+        {
+            try
+            {
+                var lastCheckNumber = await _context.Checks
+                    .OrderByDescending(c => c.CheckId)
+                    .Select(c => c.CheckId)
+                    .FirstOrDefaultAsync();
+
+                var nextNumber = lastCheckNumber == 0
+                    ? 1000
+                    : lastCheckNumber + 1;
+
+                return Ok(nextNumber);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetNextCheckNumber failed");
+                return StatusCode(500, "Failed to get next check number");
+            }
         }
 
         // CLIENT
