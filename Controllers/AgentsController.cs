@@ -98,7 +98,6 @@ namespace GemachApp.Controllers
             }
         }
 
-
         // GET: api/agent
         [HttpGet]
         public async Task<IActionResult> GetAgents()
@@ -123,8 +122,6 @@ namespace GemachApp.Controllers
             }
         }
 
-        
-
         // DELETE: api/agent/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAgent(int id)
@@ -136,7 +133,6 @@ namespace GemachApp.Controllers
             {
                 return NotFound(new { message = "Agent not found" });
             }
-
 
             _context.Agents.Remove(agent);
 
@@ -151,7 +147,6 @@ namespace GemachApp.Controllers
                 Agent = "ADMIN",
                 Timestamp = DateTime.UtcNow
             });
-
 
                 await _context.SaveChangesAsync();
                 return Ok(new { message = "Agent deleted successfully" });
