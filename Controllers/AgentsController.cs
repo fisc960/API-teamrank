@@ -122,6 +122,7 @@ namespace GemachApp.Controllers
             }
         }
 
+        /* for testing only 
         // DELETE: api/agent/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAgent(int id)
@@ -136,7 +137,7 @@ namespace GemachApp.Controllers
 
             _context.Agents.Remove(agent);
 
-           /* _context.Updates.Add(new UpdateLog
+            _context.Updates.Add(new UpdateLog
             {
                 TableName = "Agent",
                 ObjectId = agent.Id.ToString(),
@@ -146,7 +147,7 @@ namespace GemachApp.Controllers
                 UpdatedVersion = "DELETED",
                 Agent = "ADMIN",
                 Timestamp = DateTime.UtcNow
-            });*/
+            });
 
                 await _context.SaveChangesAsync();
                 return Ok(new { message = "Agent deleted successfully" });
@@ -156,8 +157,36 @@ namespace GemachApp.Controllers
                 Console.WriteLine($"Error in DeleteAgent: {ex.Message}");
                 return BadRequest(new { message = "Failed to delete agent", error = ex.Message });
             }
-        }
+        }*/
 
+
+        //for testing only 
+        // DELETE: api/agent/{id}
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteAgent(int id)
+        {
+            try
+            {
+                var agent = await _context.Agents
+                    .AsNoTracking()
+    .FirstOrDefaultAsync(x => x.Id == id);
+                if (agent == null)
+                {
+                    return NotFound(new { message = "Agent not found" });
+                }
+                _context.Attach(agent);
+                _context.Agents.Remove(agent);
+
+               
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "Agent deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in DeleteAgent: {ex.Message}");
+                return BadRequest(new { message = "Failed to delete agent", error = ex.Message });
+            }
+        }
         private void LogAgentFieldChanges(Agent existingAgent, Agent updatedAgent, string agentMakingChange)
         {
             var updates = new List<UpdateLog>();
