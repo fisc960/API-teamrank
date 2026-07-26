@@ -122,7 +122,7 @@ namespace GemachApp.Controllers
             }
         }
 
-        /* for testing only 
+   
         // DELETE: api/agent/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAgent(int id)
@@ -157,28 +157,40 @@ namespace GemachApp.Controllers
                 Console.WriteLine($"Error in DeleteAgent: {ex.Message}");
                 return BadRequest(new { message = "Failed to delete agent", error = ex.Message });
             }
-        }*/
+        }
 
 
         //for testing only 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteAgent(int id)
+        [HttpGet("dbinfo")]
+        public async Task<IActionResult> DbInfo()
         {
-            try
-            {
-                var rows = await _context.Database.ExecuteSqlInterpolatedAsync(
-                    $"DELETE FROM agents WHERE id = {id}");
+            var conn = _context.Database.GetDbConnection();
 
-                return Ok(new
-                {
-                    RowsDeleted = rows
-                });
-            }
-            catch (Exception ex)
+            await conn.OpenAsync();
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+        SELECT
+            current_database(),
+            current_user,
+            inet_server_addr(),
+            inet_server_port();
+    ";
+
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            await reader.ReadAsync();
+
+            return Ok(new
             {
-                return BadRequest(ex.ToString());
-            }
+                Database = reader.GetString(0),
+                User = reader.GetString(1),
+                Server = reader.GetValue(2)?.ToString(),
+                Port = reader.GetInt32(3)
+            });
         }
+
+
         private void LogAgentFieldChanges(Agent existingAgent, Agent updatedAgent, string agentMakingChange)
         {
             var updates = new List<UpdateLog>();
