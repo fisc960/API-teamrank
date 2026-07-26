@@ -161,30 +161,22 @@ namespace GemachApp.Controllers
 
 
         //for testing only 
-        // DELETE: api/agent/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAgent(int id)
         {
             try
             {
-                var agent = await _context.Agents
-                    .AsNoTracking()
-    .FirstOrDefaultAsync(x => x.Id == id);
-                if (agent == null)
-                {
-                    return NotFound(new { message = "Agent not found" });
-                }
-                _context.Attach(agent);
-                _context.Agents.Remove(agent);
+                var rows = await _context.Database.ExecuteSqlInterpolatedAsync(
+                    $"DELETE FROM agents WHERE id = {id}");
 
-               
-                await _context.SaveChangesAsync();
-                return Ok(new { message = "Agent deleted successfully" });
+                return Ok(new
+                {
+                    RowsDeleted = rows
+                });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in DeleteAgent: {ex.Message}");
-                return BadRequest(new { message = "Failed to delete agent", error = ex.Message });
+                return BadRequest(ex.ToString());
             }
         }
         private void LogAgentFieldChanges(Agent existingAgent, Agent updatedAgent, string agentMakingChange)
