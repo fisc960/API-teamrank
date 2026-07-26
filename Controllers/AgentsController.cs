@@ -190,7 +190,20 @@ namespace GemachApp.Controllers
             });
         }
 
-
+        //  for testing only
+        [HttpDelete("test")]
+        public async Task<IActionResult> TestDelete()
+        {
+            try
+            {
+                await _context.Database.ExecuteSqlRawAsync("DELETE FROM updates WHERE 1 = 0");
+                return Ok("Success");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.ToString());
+            }
+        }
         private void LogAgentFieldChanges(Agent existingAgent, Agent updatedAgent, string agentMakingChange)
         {
             var updates = new List<UpdateLog>();
