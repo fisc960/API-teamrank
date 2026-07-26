@@ -136,7 +136,7 @@ namespace GemachApp.Controllers
 
             _context.Agents.Remove(agent);
 
-            _context.Updates.Add(new UpdateLog
+           /* _context.Updates.Add(new UpdateLog
             {
                 TableName = "Agent",
                 ObjectId = agent.Id.ToString(),
@@ -146,7 +146,7 @@ namespace GemachApp.Controllers
                 UpdatedVersion = "DELETED",
                 Agent = "ADMIN",
                 Timestamp = DateTime.UtcNow
-            });
+            });*/
 
                 await _context.SaveChangesAsync();
                 return Ok(new { message = "Agent deleted successfully" });
