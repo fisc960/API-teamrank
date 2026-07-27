@@ -3,6 +3,7 @@ using GemachApp.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using static GemachApp.Controllers.UpdateController;
 
 
@@ -191,19 +192,73 @@ namespace GemachApp.Controllers
         }
 
         //  for testing only
-        [HttpDelete("test")]
-        public async Task<IActionResult> TestDelete()
+        [HttpGet("databaseid")]
+        public async Task<IActionResult> DatabaseId()
         {
             try
             {
-                await _context.Database.ExecuteSqlRawAsync("DELETE FROM updates WHERE 1 = 0");
-                return Ok("Success");
+                await using var conn = new NpgsqlConnection(_context.Database.GetConnectionString());
+                await conn.OpenAsync();
+
+                var cmd = new NpgsqlCommand(@"
+            SELECT
+                inet_server_addr(),
+                inet_server_port(),
+                current_database(),
+                current_user;
+        ", conn);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                await reader.ReadAsync();
+
+                return Ok(new
+                {
+                    Server = reader.GetValue(0)?.ToString(),
+                    Port = reader.GetValue(1)?.ToString(),
+                    Database = reader.GetValue(2)?.ToString(),
+                    User = reader.GetValue(3)?.ToString()
+                });
             }
             catch (Exception ex)
             {
                 return BadRequest(ex.ToString());
             }
         }
+
+        // for test only
+        [HttpGet("ping")]
+        public IActionResult Ping()
+        {
+            return Ok(DateTime.UtcNow);
+        }
+
+
+        //  fot test only  
+        [HttpGet("test")]
+        public async Task<IActionResult> Test()
+        {
+            try
+            {
+                var conn = _context.Database.GetDbConnection();
+
+                await conn.OpenAsync();
+
+                return Ok(new
+                {
+                    State = conn.State.ToString(),
+                    Database = conn.Database,
+                    DataSource = conn.DataSource,
+                    ServerVersion = conn.ServerVersion
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.ToString());
+            }
+        }
+
+
         private void LogAgentFieldChanges(Agent existingAgent, Agent updatedAgent, string agentMakingChange)
         {
             var updates = new List<UpdateLog>();

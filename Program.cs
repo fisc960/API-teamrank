@@ -124,7 +124,7 @@ app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
 
 // DB keep-alive ping - touches Supabase to prevent auto-pause
-// Point your cron-job.org (or similar) pinger at this URL every ~10 minutes
+// Point  cron-job.org (or similar) pinger at this URL every ~10 minutes
 app.MapGet("/db-ping", async (AppDbContext ctx) =>
 {
     try
@@ -229,9 +229,11 @@ static string ConvertDatabaseUrl(string databaseUrl)
         $"Password={password};" +
         $"Ssl Mode=Require;" +
         $"Trust Server Certificate=true;" +
-        $"Pooling=true;" +
+        $"Pooling=false;";
+        /*$"Pooling=true;" +
         $"Minimum Pool Size=1;" +
         $"Maximum Pool Size=10;" + // stay comfortably under Supabase's pool limit (15)
         $"Connection Idle Lifetime=60;" + // recycle idle connections instead of holding them indefinitely
         $"Timeout=15;"; // fail fast if a new connection can't be established, instead of hanging
+    */
 }
