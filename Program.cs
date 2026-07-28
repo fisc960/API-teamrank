@@ -145,45 +145,6 @@ app.MapGet("/db-ping", async (AppDbContext ctx) =>
 });
 #endregion
 
-//  Admin seeding runs in background — never blocks port from opening
-/*_ = Task.Run(async () =>
-{
-    await Task.Delay(TimeSpan.FromSeconds(3));
-    Console.WriteLine("⚠️ Starting admin reset (background)...");
-
-    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
-    try
-    {
-        using var scope = app.Services.CreateScope();
-        var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var hasher = new PasswordHasher<Admin>();
-
-        var existingAdmins = await ctx.Admins.ToListAsync(cts.Token);
-        if (existingAdmins.Any())
-        {
-            ctx.Admins.RemoveRange(existingAdmins);
-            await ctx.SaveChangesAsync(cts.Token);
-        }
-
-        ctx.Admins.Add(new Admin
-        {
-            Name = "admin",
-            PasswordHash = hasher.HashPassword(new Admin(), "Admin123!")
-        });
-
-        await ctx.SaveChangesAsync(cts.Token);
-        Console.WriteLine("✅ Admin reset complete: admin / Admin123!");
-    }
-    catch (OperationCanceledException)
-    {
-        Console.WriteLine("⏱️ Admin reset timed out after 25s — app continues running.");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"❌ Admin reset failed: {ex.Message}");
-    }
-});*/
-
 app.MapPost("/admin/reset-admin", async (AppDbContext ctx) =>
 {
     try
@@ -229,7 +190,10 @@ static string ConvertDatabaseUrl(string databaseUrl)
         $"Password={password};" +
         $"Ssl Mode=Require;" +
         $"Trust Server Certificate=true;" +
-        $"Pooling=false;";
+        $"Pooling=false;" +
+    $"Keepalive=30;" +
+    $"Timeout=15;" +
+    $"Command Timeout=30;";
         /*$"Pooling=true;" +
         $"Minimum Pool Size=1;" +
         $"Maximum Pool Size=10;" + // stay comfortably under Supabase's pool limit (15)

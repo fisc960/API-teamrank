@@ -160,106 +160,54 @@ namespace GemachApp.Controllers
             }
         }
 
-
-        //for testing only 
-        [HttpGet("dbinfo")]
-        public async Task<IActionResult> DbInfo()
-        {
-            var conn = _context.Database.GetDbConnection();
-
-            await conn.OpenAsync();
-
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"
-        SELECT
-            current_database(),
-            current_user,
-            inet_server_addr(),
-            inet_server_port();
-    ";
-
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            await reader.ReadAsync();
-
-            return Ok(new
-            {
-                Database = reader.GetString(0),
-                User = reader.GetString(1),
-                Server = reader.GetValue(2)?.ToString(),
-                Port = reader.GetInt32(3)
-            });
-        }
-
-        //  for testing only
-        [HttpGet("databaseid")]
-        public async Task<IActionResult> DatabaseId()
+        // Edit: api/agent/{id}
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateAgent(int id, [FromBody] UpdateAgentRequest request)
         {
             try
             {
-                await using var conn = new NpgsqlConnection(_context.Database.GetConnectionString());
-                await conn.OpenAsync();
-
-                var cmd = new NpgsqlCommand(@"
-            SELECT
-                inet_server_addr(),
-                inet_server_port(),
-                current_database(),
-                current_user;
-        ", conn);
-
-                await using var reader = await cmd.ExecuteReaderAsync();
-
-                await reader.ReadAsync();
-
-                return Ok(new
+                if (id != request.Id)
                 {
-                    Server = reader.GetValue(0)?.ToString(),
-                    Port = reader.GetValue(1)?.ToString(),
-                    Database = reader.GetValue(2)?.ToString(),
-                    User = reader.GetValue(3)?.ToString()
-                });
+                    return BadRequest(new { message = "Agent ID mismatch" });
+                }
+
+                if (string.IsNullOrWhiteSpace(request.AgentName) || string.IsNullOrWhiteSpace(request.AgentPassword))
+                {
+                    return BadRequest(new { message = "Agent name and password are required" });
+                }
+
+                var existingAgent = await _context.Agents.FindAsync(id);
+                if (existingAgent == null)
+                {
+                    return NotFound(new { message = "Agent not found" });
+                }
+
+                // capture old values before overwriting, for the change log
+                var previousAgentSnapshot = new Agent
+                {
+                    Id = existingAgent.Id,
+                    AgentName = existingAgent.AgentName,
+                    AgentPassword = existingAgent.AgentPassword,
+                    AgentOpenDate = existingAgent.AgentOpenDate
+                };
+
+                existingAgent.AgentName = request.AgentName;
+                existingAgent.AgentPassword = request.AgentPassword;
+
+                await LogAgentFieldChanges(previousAgentSnapshot, existingAgent, request.AgentMakingChange ?? "Unknown");
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Agent updated successfully" });
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.ToString());
+                Console.WriteLine($"Error in UpdateAgent: {ex.Message}");
+                return StatusCode(500, new { message = "Internal server error", error = ex.Message });
             }
         }
 
-        // for test only
-        [HttpGet("ping")]
-        public IActionResult Ping()
-        {
-            return Ok(DateTime.UtcNow);
-        }
-
-
-        //  fot test only  
-        [HttpGet("test")]
-        public async Task<IActionResult> Test()
-        {
-            try
-            {
-                var conn = _context.Database.GetDbConnection();
-
-                await conn.OpenAsync();
-
-                return Ok(new
-                {
-                    State = conn.State.ToString(),
-                    Database = conn.Database,
-                    DataSource = conn.DataSource,
-                    ServerVersion = conn.ServerVersion
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.ToString());
-            }
-        }
-
-
-        private void LogAgentFieldChanges(Agent existingAgent, Agent updatedAgent, string agentMakingChange)
+        private async Task LogAgentFieldChanges(Agent existingAgent, Agent updatedAgent, string agentMakingChange)
         {
             var updates = new List<UpdateLog>();
             var timestamp = DateTime.UtcNow;
